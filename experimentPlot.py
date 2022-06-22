@@ -1,7 +1,7 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 
-class manipulate_data:
+class data_frame:
     """Class to read, clean, and extract only required data
     """
 
@@ -43,8 +43,6 @@ class manipulate_data:
                 data_quantity = 'CenterOfMass.txt'
                 filename = f"../data/{self._date}/{data_type}/{self._date}_{self._sr}/{data_quantity}"
                 self._df = pd.read_csv(filename, sep=' ', names=['Time', 'Sinkage'], skiprows=[0])
-            
-        #print(self._df)
         
     @property
     def clean_data(self):
@@ -67,8 +65,6 @@ class manipulate_data:
                 for x in self._df.index:
                     self._df.loc[x, 'time'] = self._df.loc[x, 'time'].seconds + self._df.loc[x, 'time'].microseconds/1000000
                 self._df.rename(columns={'time': 'Time'}, inplace=True)
-                #print(self._df)
-        
         
         elif self._flag['type'] == 'simulation':
             if self._flag['quantity'] == 'force':
@@ -87,6 +83,9 @@ class manipulate_data:
 class plot_data:
     """Class to plot the data
     """
+    def __init__(self, df):
+        self._df = df
+        print(self._df)
 
 
 
@@ -96,8 +95,6 @@ if __name__ == '__main__':
     date, sr = 20220615, 10
 
     data_values = {'type': 'experiment', 'quantity': 'sinkage'}
-    data = manipulate_data(date, sr, data_values)
+    data = data_frame(date, sr, data_values)
     dataFrame1 = data.clean_data
-    #data.plot_data()
-    print(dataFrame1)
-    #print(type(dataFrame1.loc[0, 'time']))
+    plot_data = plot_data(dataFrame1)
