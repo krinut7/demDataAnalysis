@@ -55,14 +55,17 @@ class manipulate_data:
             if self._flag['quantity'] == 'force':
                 self._df['fx/fz'] = self._df['.wrench.force.x']/self._df['.wrench.force.z']
                 self._df['time'] = pd.to_datetime(self._df['time'])
-                self._df.rename(columns={'time': 'Time'}, inplace=True)
-                self._df['timeCalculated'] = self._df['Time'] - self._df.loc[0, 'Time']
+                self._df['time'] = self._df['time'] - self._df.loc[0, 'time']
                 for x in self._df.index:
-                    self._df.loc[x, 'Time'] = self._df.loc[x, 'timeCalculated'].seconds + self._df.loc[x, 'timeCalculated'].microseconds/1000000
-                #self._df = self._df.groupby(['timeCalculated']).mean().reset_index()
+                    self._df.loc[x, 'time'] = self._df.loc[x, 'time'].seconds + self._df.loc[x, 'time'].microseconds/1000000
+                self._df.rename(columns={'time': 'Time'}, inplace=True)
+                #self._df = self._df.groupby(['time']).mean().reset_index()
             
             elif self._flag['quantity'] == 'sinkage':
                 self._df['time'] = pd.to_datetime(self._df['time'])
+                self._df['time'] = self._df['time'] - self._df.loc[0, 'time']
+                for x in self._df.index:
+                    self._df.loc[x, 'time'] = self._df.loc[x, 'time'].seconds + self._df.loc[x, 'time'].microseconds/1000000
                 self._df.rename(columns={'time': 'Time'}, inplace=True)
                 #print(self._df)
         
@@ -84,7 +87,7 @@ class manipulate_data:
 class plot_data:
     """Class to plot the data
     """
-    
+
 
 
 
@@ -92,9 +95,9 @@ if __name__ == '__main__':
     
     date, sr = 20220615, 10
 
-    data_values = {'type': 'experiment', 'quantity': 'force'}
+    data_values = {'type': 'experiment', 'quantity': 'sinkage'}
     data = manipulate_data(date, sr, data_values)
     dataFrame1 = data.clean_data
-    data.plot_data()
+    #data.plot_data()
     print(dataFrame1)
-    #print(type(dataFrame1.loc[0, 'timeCalculated']))
+    #print(type(dataFrame1.loc[0, 'time']))
