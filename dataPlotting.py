@@ -86,6 +86,7 @@ class data_frame:
                 
         return self._df
     
+    @property
     def plot_data(self):
         self._df = self.clean_data
         if self._flag['quantity'] == 'force':
@@ -135,8 +136,10 @@ if __name__ == '__main__':
         data.insert(i, data_frame(date, SR[i], data_values))
         dataFrame.insert(i,data[i].clean_data)
     
-    data[0].plot_data_compare(dataFrame)
-    #print(data[1].clean_data)
-    #data_frame.plot_data_compare(data[0],dataFrame)
+    if sys.argv[3] == 'single':
+        data[0].plot_data
+    
+    elif sys.argv[3] == 'compare':
+        data[0].plot_data_compare(dataFrame)
     
     
