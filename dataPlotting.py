@@ -77,7 +77,6 @@ class DataFrame:
                     filename, sep=' ', names=['Time', 'Sinkage'],
                     skiprows=[0])
 
-        print(f"Read DataFrame in function:\n{id(df)}")
         return df
 
     def clean_data(self, df):
@@ -137,7 +136,6 @@ class DataFrame:
             elif self._flag['quantity'] == 'sinkage':
                 df['Time'] = df['Time'] - df.loc[0, 'Time']
 
-        print(f"Clean DataFrame in function:\n{id(df)}")
         return df
 
     def plot_data(self, df):
@@ -159,7 +157,6 @@ class DataFrame:
                 autoscale_on=True, xlim=(0, 20))
             plt.plot('Time', 'Sinkage', data=df, linestyle='-')
 
-        print(f"Plot DataFrame in function:\n{id(df)}")
         plt.show()
 
     def plot_data_compare(self, data=None):
