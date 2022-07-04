@@ -20,42 +20,41 @@ class DataFrame:
         Paramters:
             date (int): Date of data collection yyyymmdd
             sr (int): Slip ratio
-            flag (dictionary): Type and quantity of data
+            flag (dictionary): Type: experiment or simulation
+                                Quantity: force or sinkage
         """
         self._flag = flag
         self._date = date
         self._sr = sr
 
-    def _read_data(self):
-        """Read data from csv and load to dataframe.
+    def read_data(self):
+        """Read data from csv and load to dataframe based on flagvalues.
 
-        Create datafframe based on the flag values.
+        Returns:
+            df (Pandas DataFrame): read dataframe
         """
         if self._flag['type'] == 'experiment':
             data_type = 'experimentData'
 
             if self._flag['quantity'] == 'force':
-                data_quantity = \
-                    'leptrino_force_torque_on_wheel-force_torque.csv'
+                data_quantity = (
+                    'leptrino_force_torque_on_wheel-force_torque.csv')
                 filename = (
                     f"../data/{self._date}/{data_type}/"
                     f"{self._date}_{self._sr}/{data_quantity}")
-                self._df = pd.read_csv(
-                    filename,
-                    usecols=[
-                        'time',
-                        '.wrench.force.x',
-                        '.wrench.force.z']
-                )
+
+                df = pd.read_csv(
+                    filename, usecols=[
+                        'time', '.wrench.force.x', '.wrench.force.z'])
 
             elif self._flag['quantity'] == 'sinkage':
                 data_quantity = 'swt_driver-vertical_unit_log.csv'
+
                 filename = (
                     f"../data/{self._date}/{data_type}/"
                     f"{self._date}_{self._sr}/{data_quantity}")
-                self._df = pd.read_csv(
-                    filename,
-                    usecols=['time', '.wheel_sinkage'])
+
+                df = pd.read_csv(filename, usecols=['time', '.wheel_sinkage'])
 
         elif self._flag['type'] == 'simulation':
             data_type = 'simulationData'
@@ -65,91 +64,114 @@ class DataFrame:
                 filename = (
                     f"../data/{self._date}/{data_type}/"
                     f"{self._date}_{self._sr}/{data_quantity}")
-                self._df = pd.read_csv(
-                    filename,
-                    header=1,
-                    usecols=['Time', 'wheel.fx', 'wheel.fz'])
+                df = pd.read_csv(
+                    filename, header=1, usecols=[
+                        'Time', 'wheel.fx', 'wheel.fz'])
 
             elif self._flag['quantity'] == 'sinkage':
                 data_quantity = 'CenterOfMass.txt'
                 filename = (
                     f"../data/{self._date}/{data_type}/"
                     f"{self._date}_{self._sr}/{data_quantity}")
-                self._df = pd.read_csv(
-                    filename,
-                    sep=' ',
-                    names=['Time', 'Sinkage'],
+                df = pd.read_csv(
+                    filename, sep=' ', names=['Time', 'Sinkage'],
                     skiprows=[0])
 
-    def clean_data(self, function):
-        """Extract the data from the csv based on the flag values."""
-        function()
+        print(f"Read DataFrame in function:\n{id(df)}")
+        return df
+
+    def clean_data(self, df):
+        """Extract the data from the csv based on the flag values.
+
+        Create columns with correct name and datatype.
+
+        Arguments:
+            df (Pandas DataFrame): df with read data.
+
+        Returns:
+            df (Pandas DataFrame): extracted data with the correct column name
+            and type.
+        """
         if self._flag['type'] == 'experiment':
             if self._flag['quantity'] == 'force':
-                self._df['Fx/Fz'] = \
-                    self._df['.wrench.force.x'] / self._df['.wrench.force.z']
-                self._df['time'] = pd.to_datetime(self._df['time'])
-                self._df['time'] = self._df['time'] - self._df.loc[0, 'time']
-                for x in self._df.index:
-                    self._df.loc[x, 'time'] = \
-                        self._df.loc[x, 'time'].seconds +\
-                        self._df.loc[x, 'time'].microseconds / 1000000
-                    if not -0.3 <= self._df.loc[x, 'Fx/Fz'] <= 0.3:
-                        self._df.drop(x, inplace=True)
-                self._df.rename(
-                    columns={
-                        '.wrench.force.x': 'Fx',
-                        '.wrench.force.z': 'Fz',
-                        'time': 'Time'},
-                    inplace=True)
-                # self._df = self._df.groupby(['time']).mean().reset_index()
+                df['Fx/Fz'] = df['.wrench.force.x'] / df['.wrench.force.z']
+                df['time'] = pd.to_datetime(df['time'])
+                df['time'] = df['time'] - df.loc[0, 'time']
+
+                for x in df.index:
+                    df.loc[x, 'time'] = (df.loc[x, 'time'].seconds
+                                         + df.loc[x, 'time'].microseconds
+                                         / 1000000)
+
+                    if not -0.3 <= df.loc[x, 'Fx/Fz'] <= 0.3:
+                        df = df.drop(x)
+
+                df = df.rename(columns={
+                    '.wrench.force.x': 'Fx', '.wrench.force.z': 'Fz',
+                    'time': 'Time'})
 
             elif self._flag['quantity'] == 'sinkage':
-                self._df['time'] = pd.to_datetime(self._df['time'])
-                self._df['time'] = self._df['time'] - self._df.loc[0, 'time']
-                for x in self._df.index:
-                    self._df.loc[x, 'time'] = \
-                        self._df.loc[x, 'time'].seconds + \
-                        self._df.loc[x, 'time'].microseconds / 1000000
-                _ = list(range(self._df.index.size - 5, self._df.index.size))
-                self._df.drop(_, inplace=True)
-                self._df.rename(
-                    columns={'time': 'Time', '.wheel_sinkage': 'Sinkage'},
-                    inplace=True)
+                df['time'] = pd.to_datetime(df['time'])
+                df['time'] = df['time'] - df.loc[0, 'time']
+                for x in df.index:
+                    df.loc[x, 'time'] = (df.loc[x, 'time'].seconds
+                                         + df.loc[x, 'time'].microseconds
+                                         / 1000000)
+
+                _ = list(range(df.index.size - 5, df.index.size))
+                df = df.drop(_)
+
+                df = df.rename(columns={
+                    'time': 'Time', '.wheel_sinkage': 'Sinkage'})
 
         elif self._flag['type'] == 'simulation':
             if self._flag['quantity'] == 'force':
-                self._df['Fx/Fz'] = \
-                    self._df["wheel.fx"] / self._df["wheel.fz"]
-                self._df['Fx/Fz'].fillna(0, inplace=True)
-                self._df['Time'] = self._df['Time'] - self._df.loc[0, 'Time']
-                for x in self._df.index:
-                    if not -5 <= self._df.loc[x, 'Fx/Fz'] <= 5:
-                        self._df.drop(x, inplace=True)
-                self._df.rename(
-                    columns={'wheel.fx': 'Fx', 'wheel.fz': 'Fz'},
-                    inplace=True)
+                df['Fx/Fz'] = df["wheel.fx"] / df["wheel.fz"]
+                df = df['Fx/Fz'].fillna(0)
+                df['Time'] = df['Time'] - df.loc[0, 'Time']
+                for x in df.index:
+                    if not -5 <= df.loc[x, 'Fx/Fz'] <= 5:
+                        df = df.drop(x)
+                df = df.rename(columns={'wheel.fx': 'Fx', 'wheel.fz': 'Fz'})
 
             elif self._flag['quantity'] == 'sinkage':
-                self._df['Time'] = self._df['Time'] - self._df.loc[0, 'Time']
+                df['Time'] = df['Time'] - df.loc[0, 'Time']
 
-        return self._df
+        print(f"Clean DataFrame in function:\n{id(df)}")
+        return df
 
-    @property
-    def plot_data(self):
-        self._df = self.clean_data
+    def plot_data(self, df):
+        """Plot data for a single Slip ratio.
+
+        Arguments:
+            df (Pandas DataFrame): df with clean data.
+        """
+        fig, ax = plt.subplots()
+
         if self._flag['quantity'] == 'force':
-            plt.plot('Time', 'Fx/Fz', data=self._df, linestyle='-')
+            ax.set(
+                xlabel='Time', ylabel='Fx/Fz', title='Fx/Fz',
+                autoscale_on=True, xlim=(0, 45))
+            plt.plot('Time', 'Fx/Fz', data=df, linestyle='-')
         elif self._flag['quantity'] == 'sinkage':
-            plt.plot('Time', 'Sinkage', data=self._df, linestyle='-')
+            ax.set(
+                xlabel='Time', ylabel='Sinkage', title='Sinkage',
+                autoscale_on=True, xlim=(0, 20))
+            plt.plot('Time', 'Sinkage', data=df, linestyle='-')
 
+        print(f"Plot DataFrame in function:\n{id(df)}")
         plt.show()
 
     def plot_data_compare(self, data=None):
+        """Plot data for all the slip ratios.
+
+        Arguments:
+            data (list): dataFrame for all the slipratio
+        """
         _ = 10
         fig, ax = plt.subplots()
 
-        for i in range(0, 5):
+        for i in range(0, 4):
             if self._flag['type'] == 'experiment':
                 if self._flag['quantity'] == 'force':
                     ax.set(
@@ -192,18 +214,25 @@ class DataFrame:
 if __name__ == '__main__':
 
     data_values = {'type': f'{sys.argv[1]}', 'quantity': f'{sys.argv[2]}'}
-    date = 20220615
-    SR = [10, 30, 50, 70, 90]
+    date = 20220629
+    SR = [10, 30, 50, 70]
     dataFrame_object = []
-    dataFrame = []
-    for i in range(0, 5):
+    read_dataFrame = []
+    clean_dataFrame = []
+
+    for i in range(0, 4):
         dataFrame_object.insert(i, DataFrame(date, SR[i], data_values))
-        dataFrame.insert(
-            i,
-            dataFrame_object[i].clean_data(dataFrame_object[i]._read_data))
+        read_dataFrame.insert(i, dataFrame_object[i].read_data())
+        clean_dataFrame.insert(
+            i, dataFrame_object[i].clean_data(read_dataFrame[i]))
+        # clean_dataFrame.insert(i, dataFrame_object[i].clean_data())
 
     if sys.argv[3] == 'single':
-        dataFrame_object[0].plot_data
+        print(f"Read DataFrame:\n{read_dataFrame[0]}")
+        print(f"Clean DataFrame\n{clean_dataFrame[0]}")
+        dataFrame_object[0].plot_data(clean_dataFrame[0])
 
     elif sys.argv[3] == 'compare':
-        dataFrame_object[0].plot_data_compare(dataFrame)
+        dataFrame_object[0].plot_data_compare(clean_dataFrame)
+
+    # print(help(dataFrame_object[0].clean_data))
