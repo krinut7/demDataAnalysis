@@ -1,5 +1,6 @@
 """PLot data collected from simulation and experiments."""
 
+from cmath import exp
 import pandas as pd
 import matplotlib.pyplot as plt
 import sys
@@ -33,6 +34,9 @@ class DataFrame:
         Returns:
             df (Pandas DataFrame): read dataframe
         """
+        df_force = {'exp': None, 'sim': None}
+        df_sinkage = {'exp': None, 'sim': None}
+
         if self._flag['type'] == 'experiment':
             data_type = 'experimentData'
 
@@ -43,7 +47,7 @@ class DataFrame:
                     f"../data/{self._date}/{data_type}/"
                     f"{self._date}_{self._sr}/{data_quantity}")
 
-                df = pd.read_csv(
+                df_force['exp'] = pd.read_csv(
                     filename, usecols=[
                         'time', '.wrench.force.x', '.wrench.force.z'])
 
@@ -54,38 +58,43 @@ class DataFrame:
                     f"../data/{self._date}/{data_type}/"
                     f"{self._date}_{self._sr}/{data_quantity}")
 
-                df = pd.read_csv(filename, usecols=['time', '.wheel_sinkage'])
+                df_sinkage['exp'] = pd.read_csv(
+                    filename, usecols=['time', '.wheel_sinkage'])
 
         elif self._flag['type'] == 'simulation':
             data_type = 'simulationData'
 
             if self._flag['quantity'] == 'force':
                 data_quantity = 'result_monitor.csv'
+
                 filename = (
                     f"../data/{self._date}/{data_type}/"
                     f"{self._date}_{self._sr}/{data_quantity}")
-                df = pd.read_csv(
+
+                df_force['sim'] = pd.read_csv(
                     filename, header=1, usecols=[
                         'Time', 'wheel.fx', 'wheel.fz'])
 
             elif self._flag['quantity'] == 'sinkage':
                 data_quantity = 'CenterOfMass.txt'
+
                 filename = (
                     f"../data/{self._date}/{data_type}/"
                     f"{self._date}_{self._sr}/{data_quantity}")
-                df = pd.read_csv(
+
+                df_sinkage['sim'] = pd.read_csv(
                     filename, sep=' ', names=['Time', 'Sinkage'],
                     skiprows=[0])
 
-        return df
+        return df_force, df_sinkage
 
-    def clean_data(self, df):
+    def clean_data(self, df_force, df_sinkage):
         """Extract the data from the csv based on the flag values.
 
         Create columns with correct name and datatype.
 
         Arguments:
-            df (Pandas DataFrame): df with read data.
+            df_force (Pandas DataFrame): df_force with read data.
 
         Returns:
             df (Pandas DataFrame): extracted data with the correct column name
@@ -93,6 +102,7 @@ class DataFrame:
         """
         if self._flag['type'] == 'experiment':
             if self._flag['quantity'] == 'force':
+                df = df_force['exp']
                 df['Fx/Fz'] = df['.wrench.force.x'] / df['.wrench.force.z']
                 df['time'] = pd.to_datetime(df['time'])
                 df['time'] = df['time'] - df.loc[0, 'time']
@@ -108,8 +118,10 @@ class DataFrame:
                 df = df.rename(columns={
                     '.wrench.force.x': 'Fx', '.wrench.force.z': 'Fz',
                     'time': 'Time'})
+                df_force['exp'] = df
 
             elif self._flag['quantity'] == 'sinkage':
+                df = df_sinkage['exp']
                 df['time'] = pd.to_datetime(df['time'])
                 df['time'] = df['time'] - df.loc[0, 'time']
                 for x in df.index:
@@ -122,9 +134,11 @@ class DataFrame:
 
                 df = df.rename(columns={
                     'time': 'Time', '.wheel_sinkage': 'Sinkage'})
+                df_sinkage['exp'] = df
 
         elif self._flag['type'] == 'simulation':
             if self._flag['quantity'] == 'force':
+                df = df_force['sim']
                 df['Fx/Fz'] = df["wheel.fx"] / df["wheel.fz"]
                 df = df['Fx/Fz'].fillna(0)
                 df['Time'] = df['Time'] - df.loc[0, 'Time']
@@ -132,30 +146,43 @@ class DataFrame:
                     if not -5 <= df.loc[x, 'Fx/Fz'] <= 5:
                         df = df.drop(x)
                 df = df.rename(columns={'wheel.fx': 'Fx', 'wheel.fz': 'Fz'})
+                df_force['sim'] = df
 
             elif self._flag['quantity'] == 'sinkage':
+                df = df_sinkage['sim']
                 df['Time'] = df['Time'] - df.loc[0, 'Time']
+                df_sinkage['sim'] = df
 
-        return df
+        return df_force, df_sinkage
 
-    def plot_data(self, df):
+    def plot_data(self, df_force, df_sinkage):
         """Plot data for a single Slip ratio.
 
         Arguments:
             df (Pandas DataFrame): df with clean data.
         """
-        fig, ax = plt.subplots()
+        fig, ax = plt.subplots(1, 2)
 
         if self._flag['quantity'] == 'force':
-            ax.set(
-                xlabel='Time', ylabel='Fx/Fz', title='Fx/Fz',
-                autoscale_on=True, xlim=(0, 45))
-            plt.plot('Time', 'Fx/Fz', data=df, linestyle='-')
+            ax[0, 0].set(
+                xlabel='Time', ylabel='Fx/Fz', title=f'Fx/Fz: SR{self._sr}',
+                autoscale_on=True)  # , xlim=(0, 45))
+            ax[0, 0].plot(
+                'Time', 'Fx/Fz', data=df_force['exp'], linestyle='-',
+                label='Experiment')
+            ax[0, 0].plot(
+                'Time', 'Fx/Fz', data=df_force['exp'], linestyle='-',
+                label='Simualation')
         elif self._flag['quantity'] == 'sinkage':
-            ax.set(
-                xlabel='Time', ylabel='Sinkage', title='Sinkage',
-                autoscale_on=True, xlim=(0, 20))
-            plt.plot('Time', 'Sinkage', data=df, linestyle='-')
+            ax[0, 1].set(
+                xlabel='Time', ylabel='Sinkage',
+                title=f'Sinkage: SR{self._sr}', autoscale_on=True)
+            ax[0, 1].plot(
+                'Time', 'Sinkage', data=df_sinkage[exp], linestyle='-',
+                label='Experiment')
+            ax[0, 1].plot(
+                'Time', 'Sinkage', data=df_sinkage[exp], linestyle='-',
+                label='Simulation')
 
         plt.show()
 
