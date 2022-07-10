@@ -5,11 +5,18 @@ import matplotlib.pyplot as plt
 import sys
 
 DATE = 20220615
-SR = sys.argv[1]
+WHEEL_WEIGHT = 50  # In N
+SR = sys.argv[1]  # slip ration value in percentage
 
 
-def exp_force():
-    """Read the experiment force data."""
+def exp_force() -> pd.DataFrame:
+    """Read the experiment force data.
+
+    The axis for on wheel and estimator are different.
+    Estimator is the conventional axis.
+    Estimator -> On wheel: Fx -> -Fy, Fy -> -Fx, Fz -> -Fz
+                           Mx -> -My, My -> -Mz, Mz -> -Mx
+    """
     data_type = "experimentData"
     csv_filename = "leptrino_force_torque_on_wheel-force_torque.csv"
     filename = f"../data/{DATE}/{data_type}/{DATE}_{SR}/{csv_filename}"
@@ -24,31 +31,34 @@ def exp_force():
         ],
     )
 
-    df["Fx/Fz"] = df[".wrench.force.x"] / df[".wrench.force.z"]
-    df["time"] = pd.to_datetime(df["time"])
-    df["time"] = df["time"] - df.loc[0, "time"]
-
-    for x in df.index:
-        df.loc[x, "time"] = (
-            df.loc[x, "time"].seconds
-            + df.loc[x, "time"].microseconds / 1000000
-        )
-    if not -1 <= df.loc[x, "Fx/Fz"] <= 1:  # removing extreme values
-        df = df.drop(x)
-
     df = df.rename(
         columns={
-            ".wrench.force.x": "Fx",
-            ".wrench.force.y": "Fy",
+            ".wrench.force.x": "Fy",  # check out the docstring
+            ".wrench.force.y": "Fx",
             ".wrench.force.z": "Fz",
             "time": "Time",
         }
     )
 
+    # df["Fx"] = -1 * df["Fx"]
+    df["Fy"] = -1 * df["Fy"]  # changing the sign
+    df["Fz"] = -1 * df["Fz"]
+
+    df["Fx/Fz"] = df["Fx"] / WHEEL_WEIGHT
+    df["Time"] = pd.to_datetime(df["Time"])
+    df["Time"] = df["Time"] - df.loc[0, "Time"]
+
+    for x in df.index:
+        df.loc[x, "Time"] = (
+            df.loc[x, "Time"].seconds
+            + df.loc[x, "Time"].microseconds / 1000000
+        )
+    # if not -1 <= df.loc[x, "Fx/Fz"] <= 1:  # removing extreme values
+    # df = df.drop(x)
     return df
 
 
-def exp_sinkage():
+def exp_sinkage() -> pd.DataFrame:
     """Read the experiment sinkage data."""
     data_type = "experimentData"
     csv_filename = "swt_driver-vertical_unit_log.csv"
@@ -73,7 +83,7 @@ def exp_sinkage():
     return df
 
 
-def sim_force():
+def sim_force() -> pd.DataFrame:
     """Read the simulation force data."""
     data_type = "simulationData"
     csv_filename = "result_monitor.csv"
@@ -91,25 +101,20 @@ def sim_force():
         else:
             break
 
-    print(x)
-    # print(df)
-    df["Fx/Fz"] = df["wheel.fx"] / df["wheel.fz"]
-    # print(df)
-    df["Fx/Fz"] = df["Fx/Fz"].fillna(0)
-    # print(df)
-    # df['Time'] = df['Time'] - df.loc[0, 'Time']
+    df = df.reset_index()
 
-    # for x in df.index:
-    # if not -20 <= df.loc[x, 'wheel.fz'] <= 20:  # removing extreme values
-    # df = df.drop(x)
+    df["Fx/Fz"] = df["wheel.fx"] / WHEEL_WEIGHT
+    df["Fx/Fz"] = df["Fx/Fz"].fillna(0)
+    df["Time"] = df["Time"] - df.loc[0, "Time"]
 
     df = df.rename(
         columns={"wheel.fx": "Fx", "wheel.fy": "Fy", "wheel.fz": "Fz"}
     )
+    print(df)
     return df
 
 
-def sim_sinkage():
+def sim_sinkage() -> pd.DataFrame:
     """Read the simulation sinkae data."""
     data_type = "simulationData"
     csv_filename = "CenterOfMass.txt"
@@ -119,12 +124,20 @@ def sim_sinkage():
         filename, sep=" ", names=["Time", "Sinkage"], skiprows=[0]
     )
 
+    for x in df.index:
+        if df.loc[x, "Time"] < 2:
+            df = df.drop(x)
+        else:
+            break
+
+    df = df.reset_index()
     df["Time"] = df["Time"] - df.loc[0, "Time"]
     df["Sinkage"] = df["Sinkage"] - df.loc[0, "Sinkage"]
+
     return df
 
 
-def plot_data(df_exp=None, df_sim=None):
+def plot_data(df_exp: dict = None, df_sim: dict = None):
     """Plot the data."""
     if df_exp is None:
         df_exp = dict()
@@ -132,7 +145,7 @@ def plot_data(df_exp=None, df_sim=None):
         df_sim = dict()
 
     plot_value = "Fx/Fz"
-    fig, ax = plt.subplots(1, 2)
+    fig, ax = plt.subplots(1, 2, constrained_layout=True)
 
     ax[0].set(
         xlabel="Time",
@@ -140,14 +153,19 @@ def plot_data(df_exp=None, df_sim=None):
         title=f"{plot_value}: SR{SR}",
         autoscale_on=True,
     )
-    """ax[0].plot(
-        'Time', 'Fx', data=df_exp['force'], linestyle='-',
-        label='Experiment')"""
+    ax[0].plot(
+        "Time",
+        plot_value,
+        data=df_exp["force"],
+        linestyle="-",
+        label="Experiment",
+    )
     ax[0].plot(
         "Time",
         plot_value,
         data=df_sim["force"],
-        linestyle="-",
+        linestyle="solid",
+        color="red",
         label="Simulation",
     )
 
@@ -164,10 +182,14 @@ def plot_data(df_exp=None, df_sim=None):
         linestyle="-",
         label="Experiment",
     )
-    """ax[1].plot(
-        'Time', 'Sinkage', data=df_sim['sinkage'], linestyle='-',
-        label='Simulation')"""
-
+    ax[1].plot(
+        "Time",
+        "Sinkage",
+        data=df_sim["sinkage"],
+        linestyle="-",
+        color="red",
+        label="Simulation",
+    )
     ax[0].legend()
     ax[1].legend()
     plt.show()
@@ -186,7 +208,7 @@ def main():
 
     # print(SR)
     # print(f'Experiment:\n{df_exp}\nSimulation:\n{df_sim}')
-    print(f"Force:\n{df_sim['force'].to_string()}")
+    # print(f"Force:\n{df_sim['force'].to_string()}")
     plot_data(df_exp=df_exp, df_sim=df_sim)
 
 
