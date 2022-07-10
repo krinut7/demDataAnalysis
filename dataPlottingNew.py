@@ -4,12 +4,14 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import sys
 
-DATE = 20220615
+# from os.path import exists as file_exists
+
+DATE = 20220629
 WHEEL_WEIGHT = 50  # In N
-SR = sys.argv[1]  # slip ration value in percentage
+SR = list()  # slip ration value in percentage
 
 
-def exp_force() -> pd.DataFrame:
+def exp_force(i: int) -> pd.DataFrame:
     """Read the experiment force data.
 
     The axis for on wheel and estimator are different.
@@ -19,7 +21,7 @@ def exp_force() -> pd.DataFrame:
     """
     data_type = "experimentData"
     csv_filename = "leptrino_force_torque_on_wheel-force_torque.csv"
-    filename = f"../data/{DATE}/{data_type}/{DATE}_{SR}/{csv_filename}"
+    filename = f"../data/{DATE}/{data_type}/{DATE}_{SR[i]}/{csv_filename}"
 
     df = pd.read_csv(
         filename,
@@ -58,17 +60,17 @@ def exp_force() -> pd.DataFrame:
     return df
 
 
-def exp_sinkage() -> pd.DataFrame:
+def exp_sinkage(i: int) -> pd.DataFrame:
     """Read the experiment sinkage data."""
     data_type = "experimentData"
     csv_filename = "swt_driver-vertical_unit_log.csv"
-    filename = f"../data/{DATE}/{data_type}/{DATE}_{SR}/{csv_filename}"
+    filename = f"../data/{DATE}/{data_type}/{DATE}_{SR[i]}/{csv_filename}"
 
     df = pd.read_csv(filename, usecols=["time", ".wheel_sinkage"])
 
     df["time"] = pd.to_datetime(df["time"])
     df["time"] = df["time"] - df.loc[0, "time"]
-    df[".wheel_sinkage"] = df[".wheel_sinkage"] / 100000000
+    df[".wheel_sinkage"] = df[".wheel_sinkage"] - df.loc[0, ".wheel_sinkage"]
     for x in df.index:
         df.loc[x, "time"] = (
             df.loc[x, "time"].seconds
@@ -80,14 +82,15 @@ def exp_sinkage() -> pd.DataFrame:
 
     df = df.rename(columns={"time": "Time", ".wheel_sinkage": "Sinkage"})
 
+    print(df)
     return df
 
 
-def sim_force() -> pd.DataFrame:
+def sim_force(i: int) -> pd.DataFrame:
     """Read the simulation force data."""
     data_type = "simulationData"
     csv_filename = "result_monitor.csv"
-    filename = f"../data/{DATE}/{data_type}/{DATE}_{SR}/{csv_filename}"
+    filename = f"../data/{DATE}/{data_type}/{DATE}_{SR[i]}/{csv_filename}"
 
     df = pd.read_csv(
         filename,
@@ -110,15 +113,15 @@ def sim_force() -> pd.DataFrame:
     df = df.rename(
         columns={"wheel.fx": "Fx", "wheel.fy": "Fy", "wheel.fz": "Fz"}
     )
-    print(df)
+
     return df
 
 
-def sim_sinkage() -> pd.DataFrame:
+def sim_sinkage(i: int) -> pd.DataFrame:
     """Read the simulation sinkae data."""
     data_type = "simulationData"
     csv_filename = "CenterOfMass.txt"
-    filename = f"../data/{DATE}/{data_type}/{DATE}_{SR}/{csv_filename}"
+    filename = f"../data/{DATE}/{data_type}/{DATE}_{SR[i]}/{csv_filename}"
 
     df = pd.read_csv(
         filename, sep=" ", names=["Time", "Sinkage"], skiprows=[0]
@@ -137,8 +140,14 @@ def sim_sinkage() -> pd.DataFrame:
     return df
 
 
-def plot_data(df_exp: dict = None, df_sim: dict = None):
-    """Plot the data."""
+def plot_data(sr_len: int, df_exp: dict = None, df_sim: dict = None):
+    """Plot the data.
+
+    Arguments:
+        sr_len: length of the slip ratio list
+        df_exp: dict for experiment with the dataframes for each slip ratio
+        df_sim: dict for simulation with the dataframes for each slip ratio
+    """
     if df_exp is None:
         df_exp = dict()
     if df_sim is None:
@@ -153,64 +162,72 @@ def plot_data(df_exp: dict = None, df_sim: dict = None):
         title=f"{plot_value}: SR{SR}",
         autoscale_on=True,
     )
-    ax[0].plot(
-        "Time",
-        plot_value,
-        data=df_exp["force"],
-        linestyle="-",
-        label="Experiment",
-    )
-    ax[0].plot(
-        "Time",
-        plot_value,
-        data=df_sim["force"],
-        linestyle="solid",
-        color="red",
-        label="Simulation",
-    )
-
     ax[1].set(
         xlabel="Time",
         ylabel="Sinkage",
         title=f"Sinkage: SR{SR}",
         autoscale_on=True,
     )
-    ax[1].plot(
-        "Time",
-        "Sinkage",
-        data=df_exp["sinkage"],
-        linestyle="-",
-        label="Experiment",
-    )
-    ax[1].plot(
-        "Time",
-        "Sinkage",
-        data=df_sim["sinkage"],
-        linestyle="-",
-        color="red",
-        label="Simulation",
-    )
+
+    for i in range(sr_len - 1):
+
+        ax[0].plot(
+            "Time",
+            plot_value,
+            data=df_exp["force"][i],
+            linestyle="-",
+            label=f"Exp SR{SR[i]}",
+        )
+        ax[0].plot(
+            "Time",
+            plot_value,
+            data=df_sim["force"][i],
+            linestyle="solid",
+            label=f"Sim SR{SR[i]}",
+        )
+
+        ax[1].plot(
+            "Time",
+            "Sinkage",
+            data=df_exp["sinkage"][i],
+            linestyle="-",
+            label=f"Exp SR{SR[i]}",
+        )
+        ax[1].plot(
+            "Time",
+            "Sinkage",
+            data=df_sim["sinkage"][i],
+            linestyle="-",
+            label=f"Sim SR{SR[i]}",
+        )
+
     ax[0].legend()
     ax[1].legend()
     plt.show()
 
 
 def main():
-    """Call Main function."""
-    df_exp = dict()
-    df_sim = dict()
+    """Call Main function.
 
-    df_exp["force"] = exp_force()
-    df_exp["sinkage"] = exp_sinkage()
+    df_exp: dict for experiment with the dataframes for each slip ratio
+    df_sim: dict for simulation with the dataframes for each slip ratio
+    """
+    df_exp = {"force": list(), "sinkage": list()}
+    df_sim = {"force": list(), "sinkage": list()}
 
-    df_sim["force"] = sim_force()
-    df_sim["sinkage"] = sim_sinkage()
+    for i in range(len(sys.argv) - 1):
+        df_exp["force"].append(exp_force(i))
+        df_exp["sinkage"].append(exp_sinkage(i))
 
-    # print(SR)
-    # print(f'Experiment:\n{df_exp}\nSimulation:\n{df_sim}')
-    # print(f"Force:\n{df_sim['force'].to_string()}")
-    plot_data(df_exp=df_exp, df_sim=df_sim)
+        df_sim["force"].append(sim_force(i))
+        df_sim["sinkage"].append(sim_sinkage(i))
+
+    plot_data(len(sys.argv), df_exp, df_sim)
 
 
 if __name__ == "__main__":
+
+    for i in range(len(sys.argv) - 1):  # getting a list of slip ratio values
+        SR.append(sys.argv[i + 1])
+
     main()
