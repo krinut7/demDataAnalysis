@@ -6,7 +6,7 @@ import sys
 
 # from os.path import exists as file_exists
 
-DATE = 20220629
+DATE = 20220705
 WHEEL_WEIGHT = 50  # In N
 SR = list()  # slip ration value in percentage
 
@@ -81,8 +81,6 @@ def exp_sinkage(i: int) -> pd.DataFrame:
     df = df.drop(_)
 
     df = df.rename(columns={"time": "Time", ".wheel_sinkage": "Sinkage"})
-
-    print(df)
     return df
 
 
@@ -178,7 +176,15 @@ def plot_data(sr_len: int, df_exp: dict = None, df_sim: dict = None):
             linestyle="-",
             label=f"Exp SR{SR[i]}",
         )
-        ax[0].plot(
+        ax[1].plot(
+            "Time",
+            "Sinkage",
+            data=df_exp["sinkage"][i],
+            linestyle="-",
+            label=f"Exp SR{SR[i]}",
+        )
+
+        """ax[0].plot(
             "Time",
             plot_value,
             data=df_sim["force"][i],
@@ -189,17 +195,10 @@ def plot_data(sr_len: int, df_exp: dict = None, df_sim: dict = None):
         ax[1].plot(
             "Time",
             "Sinkage",
-            data=df_exp["sinkage"][i],
-            linestyle="-",
-            label=f"Exp SR{SR[i]}",
-        )
-        ax[1].plot(
-            "Time",
-            "Sinkage",
             data=df_sim["sinkage"][i],
             linestyle="-",
             label=f"Sim SR{SR[i]}",
-        )
+        )"""
 
     ax[0].legend()
     ax[1].legend()
