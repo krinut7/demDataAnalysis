@@ -70,7 +70,6 @@ def exp_sinkage(i: int) -> pd.DataFrame:
 
     df["time"] = pd.to_datetime(df["time"])
     df["time"] = df["time"] - df.loc[0, "time"]
-    df[".wheel_sinkage"] = df[".wheel_sinkage"] - df.loc[0, ".wheel_sinkage"]
 
     for x in df.index:
         df.loc[x, "time"] = (
@@ -78,11 +77,19 @@ def exp_sinkage(i: int) -> pd.DataFrame:
             + df.loc[x, "time"].microseconds / 1000000
         )
 
-    # _ = list(range(df.index.size - 5, df.index.size))
-    # df = df.drop(_)
+    for x in df.index:
+        if df.loc[x, ".wheel_sinkage"] != 0:
+            df = df.drop(x)
+        else:
+            break
+
+    df = df.reset_index()
+
+    _ = list(range(df.index.size - 5, df.index.size))
+    df = df.drop(_)
 
     df = df.rename(columns={"time": "Time", ".wheel_sinkage": "Sinkage"})
-    print(df.to_string())
+    # print(df)
     return df
 
 
