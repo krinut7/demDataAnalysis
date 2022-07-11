@@ -71,16 +71,18 @@ def exp_sinkage(i: int) -> pd.DataFrame:
     df["time"] = pd.to_datetime(df["time"])
     df["time"] = df["time"] - df.loc[0, "time"]
     df[".wheel_sinkage"] = df[".wheel_sinkage"] - df.loc[0, ".wheel_sinkage"]
+
     for x in df.index:
         df.loc[x, "time"] = (
             df.loc[x, "time"].seconds
             + df.loc[x, "time"].microseconds / 1000000
         )
 
-    _ = list(range(df.index.size - 5, df.index.size))
-    df = df.drop(_)
+    # _ = list(range(df.index.size - 5, df.index.size))
+    # df = df.drop(_)
 
     df = df.rename(columns={"time": "Time", ".wheel_sinkage": "Sinkage"})
+    print(df.to_string())
     return df
 
 
@@ -215,11 +217,17 @@ def main():
     df_sim = {"force": list(), "sinkage": list()}
 
     for i in range(len(sys.argv) - 1):
-        df_exp["force"].append(exp_force(i))
-        df_exp["sinkage"].append(exp_sinkage(i))
+        try:
+            df_exp["force"].append(exp_force(i))
+            df_exp["sinkage"].append(exp_sinkage(i))
+        except FileNotFoundError as err:
+            print(f"Experiment File not found: {err}")
 
-        df_sim["force"].append(sim_force(i))
-        df_sim["sinkage"].append(sim_sinkage(i))
+        try:
+            df_sim["force"].append(sim_force(i))
+            df_sim["sinkage"].append(sim_sinkage(i))
+        except FileNotFoundError as err:
+            print(f"Simulation File not found: {err}")
 
     plot_data(len(sys.argv), df_exp, df_sim)
 
