@@ -178,22 +178,22 @@ def plot_data(sr_len: int, df_exp: dict = None, df_sim: dict = None):
 
     for i in range(sr_len - 1):
 
-        ax[0].plot(
+        """ax[0].plot(
             "Time",
             plot_value,
             data=df_exp["force"][i],
             linestyle="-",
             label=f"Exp SR{SR[i]}",
-        )
-        ax[1].plot(
+        )"""
+        """ax[1].plot(
             "Time",
             "Sinkage",
             data=df_exp["sinkage"][i],
             linestyle="-",
             label=f"Exp SR{SR[i]}",
-        )
+        )"""
 
-        """ax[0].plot(
+        ax[0].plot(
             "Time",
             plot_value,
             data=df_sim["force"][i],
@@ -207,7 +207,7 @@ def plot_data(sr_len: int, df_exp: dict = None, df_sim: dict = None):
             data=df_sim["sinkage"][i],
             linestyle="-",
             label=f"Sim SR{SR[i]}",
-        )"""
+        )
 
     ax[0].legend()
     ax[1].legend()
