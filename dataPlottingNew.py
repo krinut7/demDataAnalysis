@@ -1,13 +1,15 @@
 """PLot data collected from simulation and experiments."""
 
 import pandas as pd
-from matplotlib import pyplot as plt, backend_bases as bb
+from matplotlib import pyplot as plt
 import sys
 
 # from os.path import exists as file_exists
 
-DATE = 20220705
+DATE = 20220615
 WHEEL_WEIGHT = 50  # In N
+WHEEL_DIAMETER = 0.18  # In m
+WHEEL_RADIUS = WHEEL_DIAMETER / 2  # In m
 SLIP_CONSTANT = 1  # constant for angular velocity (should not matter)
 SR = list()  # slip ration value in percentage
 
@@ -133,7 +135,7 @@ def exp_slip() -> pd.DataFrame:
         # if not 0.45 <= df_slip.loc[x, "Slip"] <= 0.55:
         # df_slip = df_slip.drop(x)
 
-    print(df_slip)
+    # print(df_slip)
     return df_slip
 
 
@@ -188,6 +190,34 @@ def sim_sinkage() -> pd.DataFrame:
     df["Time"] = df["Time"] - df.loc[0, "Time"]
     df["Sinkage"] = df["Sinkage"] - df.loc[0, "Sinkage"]
 
+    return df
+
+
+def sim_slip() -> pd.DataFrame:
+    """Read and calculate the slip for simulation."""
+    data_type = "simulationData"
+    csv_filename = "Velocity.txt"
+    filename = f"../data/{DATE}/{data_type}/{DATE}_{SR[i]}/{csv_filename}"
+
+    df = pd.read_csv(
+        filename,
+        sep=" ",
+        names=["Time", "Vx", "Vy", "Vz", "OmegaX", "OmegaY", "OmegaZ"],
+        skiprows=[0],
+    )
+
+    df["Slip"] = 1 - (df["Vx"] / (WHEEL_RADIUS * df["OmegaY"]))
+
+    for x in df.index:
+        if df.loc[x, "Time"] < 2:
+            df = df.drop(x)
+        else:
+            break
+
+    df = df.reset_index()
+    df["Time"] = df["Time"] - df.loc[0, "Time"]
+
+    print(df)
     return df
 
 
@@ -247,16 +277,16 @@ def plot_data(sr_len: int, df_exp: dict = None, df_sim: dict = None):
             data=df_exp["sinkage"][i],
             linestyle="-",
             label=f"Exp SR{SR[i]}",
-        )"""
+        )
         ax["slip"].plot(
             "Time",
             "Slip",
             data=df_exp["slip"][i],
             linestyle="-",
             label=f"Exp SR{SR[i]}",
-        )
+        )"""
 
-        """ax["force"].plot(
+        ax["force"].plot(
             "Time",
             plot_value,
             data=df_sim["force"][i],
@@ -270,7 +300,14 @@ def plot_data(sr_len: int, df_exp: dict = None, df_sim: dict = None):
             data=df_sim["sinkage"][i],
             linestyle="-",
             label=f"Sim SR{SR[i]}",
-        )"""
+        )
+        ax["slip"].plot(
+            "Time",
+            "Slip",
+            data=df_sim["slip"][i],
+            linestyle="-",
+            label=f"Sim SR{SR[i]}",
+        )
 
     """ax["force"].legend()
     fig["force"].show()
@@ -304,6 +341,7 @@ def main():
         try:
             df_sim["force"].append(sim_force())
             df_sim["sinkage"].append(sim_sinkage())
+            df_sim["slip"].append(sim_slip())
         except FileNotFoundError as err:
             print(f"Simulation File not found: {err}")
 
