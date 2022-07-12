@@ -6,13 +6,13 @@ import sys
 
 # from os.path import exists as file_exists
 
-DATE = 20220705
+DATE = 20220615
 WHEEL_WEIGHT = 50  # In N
 SLIP_CONSTANT = 1  # constant for angular velocity (should not matter)
 SR = list()  # slip ration value in percentage
 
 
-def exp_force() -> pd.DataFrame:
+def exp_force(i: int) -> pd.DataFrame:
     """Read the experiment force data.
 
     The axis for on wheel and estimator are different.
@@ -61,7 +61,7 @@ def exp_force() -> pd.DataFrame:
     return df
 
 
-def exp_sinkage() -> pd.DataFrame:
+def exp_sinkage(i: int) -> pd.DataFrame:
     """Read the experiment sinkage data."""
     data_type = "experimentData"
     csv_filename = "swt_driver-vertical_unit_log.csv"
@@ -94,7 +94,7 @@ def exp_sinkage() -> pd.DataFrame:
     return df
 
 
-def exp_slip() -> pd.DataFrame:
+def exp_slip(i: int) -> pd.DataFrame:
     """Read and calculate the slip values for experiment."""
     data_type = "experimentData"
     csv_filename_angular = "swt_driver-vertical_unit_log.csv"
@@ -137,7 +137,7 @@ def exp_slip() -> pd.DataFrame:
     return df_slip
 
 
-def sim_force() -> pd.DataFrame:
+def sim_force(i: int) -> pd.DataFrame:
     """Read the simulation force data."""
     data_type = "simulationData"
     csv_filename = "result_monitor.csv"
@@ -168,7 +168,7 @@ def sim_force() -> pd.DataFrame:
     return df
 
 
-def sim_sinkage() -> pd.DataFrame:
+def sim_sinkage(i: int) -> pd.DataFrame:
     """Read the simulation sinkae data."""
     data_type = "simulationData"
     csv_filename = "CenterOfMass.txt"
@@ -247,16 +247,16 @@ def plot_data(sr_len: int, df_exp: dict = None, df_sim: dict = None):
             data=df_exp["sinkage"][i],
             linestyle="-",
             label=f"Exp SR{SR[i]}",
-        )"""
+        )
         ax["slip"].plot(
             "Time",
             "Slip",
             data=df_exp["slip"][i],
             linestyle="-",
             label=f"Exp SR{SR[i]}",
-        )
+        )"""
 
-        """ax["force"].plot(
+        ax["force"].plot(
             "Time",
             plot_value,
             data=df_sim["force"][i],
@@ -270,7 +270,7 @@ def plot_data(sr_len: int, df_exp: dict = None, df_sim: dict = None):
             data=df_sim["sinkage"][i],
             linestyle="-",
             label=f"Sim SR{SR[i]}",
-        )"""
+        )
 
     """ax["force"].legend()
     fig["force"].show()
@@ -298,15 +298,15 @@ def main():
 
     for i in range(len(sys.argv) - 1):
         try:
-            df_exp["force"].append(exp_force())
-            df_exp["sinkage"].append(exp_sinkage())
-            df_exp["slip"].append(exp_slip())
+            df_exp["force"].append(exp_force(i))
+            df_exp["sinkage"].append(exp_sinkage(i))
+            df_exp["slip"].append(exp_slip(i))
         except FileNotFoundError as err:
             print(f"Experiment File not found: {err}")
 
         try:
-            df_sim["force"].append(sim_force())
-            df_sim["sinkage"].append(sim_sinkage())
+            df_sim["force"].append(sim_force(i))
+            df_sim["sinkage"].append(sim_sinkage(i))
         except FileNotFoundError as err:
             print(f"Simulation File not found: {err}")
 
