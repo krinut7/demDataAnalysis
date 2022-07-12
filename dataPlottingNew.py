@@ -1,7 +1,7 @@
 """PLot data collected from simulation and experiments."""
 
 import pandas as pd
-import matplotlib.pyplot as plt
+from matplotlib import pyplot as plt, backend_bases as bb
 import sys
 
 # from os.path import exists as file_exists
@@ -119,7 +119,7 @@ def exp_slip() -> pd.DataFrame:
     df_slip["Omega_conveying"] = df_conveying[".conveying_motor_angular_vel"]
     df_slip["Omega_motor"] = df_wheel[".wheel_motor_angular_vel"]
     df_slip["Slip"] = 1 - df_slip["Omega_conveying"] / df_slip["Omega_motor"]
-    df_slip["Slip"] = df_slip["Slip"].fillna(0.5)
+    df_slip["Slip"] = df_slip["Slip"].fillna(0)
 
     df_slip["Time"] = pd.to_datetime(df_slip["Time"])
     df_slip["Time"] = df_slip["Time"] - df_slip.loc[0, "Time"]
@@ -130,8 +130,8 @@ def exp_slip() -> pd.DataFrame:
             + df_slip.loc[x, "Time"].microseconds / 1000000
         )
 
-        if not 0.45 <= df_slip.loc[x, "Slip"] <= 0.55:
-            df_slip = df_slip.drop(x)
+        # if not 0.45 <= df_slip.loc[x, "Slip"] <= 0.55:
+        # df_slip = df_slip.drop(x)
 
     print(df_slip)
     return df_slip
@@ -281,9 +281,6 @@ def plot_data(sr_len: int, df_exp: dict = None, df_sim: dict = None):
     ax["slip"].legend()
     # ax["slip"].imshow()
 
-    fig["force"].canvas.set_window_title(f"Force SR{SR}")
-    fig["sinkage"].canvas.set_window_title(f"Sinkage SR{SR}")
-    fig["slip"].canvas.set_window_title(f"Slip SR{SR}")
     plt.show()
 
 
