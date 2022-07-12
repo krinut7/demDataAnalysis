@@ -8,6 +8,7 @@ import sys
 
 DATE = 20220705
 WHEEL_WEIGHT = 50  # In N
+SLIP_CONSTANT = 1  # constant for angular velocity (should not matter)
 SR = list()  # slip ration value in percentage
 
 
@@ -91,6 +92,29 @@ def exp_sinkage(i: int) -> pd.DataFrame:
     df = df.rename(columns={"time": "Time", ".wheel_sinkage": "Sinkage"})
     # print(df)
     return df
+
+
+def exp_slip(i: int) -> pd.DataFrame:
+    """Read and calculate the slip values for experiment."""
+    data_type = "experimentData"
+    csv_filename_angular = "swt_driver-vertical_unit_log.csv"
+    csv_filename_trans = "swt_driver-longitudinal_unit_log.csv"
+
+    filename_angular = (
+        f"../data/{DATE}/{data_type}/{DATE}_{SR[i]}/{csv_filename_angular}"
+    )
+    filename_trans = (
+        f"../data/{DATE}/{data_type}/{DATE}_{SR[i]}/{csv_filename_trans}"
+    )
+
+    df_angular = pd.read_csv(
+        filename_angular, usecols=["time", ".wheel_motor_angular_vel"]
+    )
+    df_trans = pd.read_csv(
+        filename_trans, usecols=["time", ".conveying_motor_angular_vel"]
+    )
+
+    df_slip["Time"] = df_angular["time"]
 
 
 def sim_force(i: int) -> pd.DataFrame:
