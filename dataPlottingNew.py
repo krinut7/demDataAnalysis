@@ -1,13 +1,15 @@
 """PLot data collected from simulation and experiments."""
 
 import pandas as pd
-import matplotlib.pyplot as plt
+from matplotlib import pyplot as plt
 import sys
 
 # from os.path import exists as file_exists
 
 DATE = 20220615
 WHEEL_WEIGHT = 50  # In N
+WHEEL_DIAMETER = 0.18  # In m
+WHEEL_RADIUS = WHEEL_DIAMETER / 2  # In m
 SLIP_CONSTANT = 1  # constant for angular velocity (should not matter)
 SR = list()  # slip ration value in percentage
 
@@ -118,8 +120,8 @@ def exp_slip(i: int) -> pd.DataFrame:
     df_slip["Time"] = df_wheel["time"]
     df_slip["Omega_conveying"] = df_conveying[".conveying_motor_angular_vel"]
     df_slip["Omega_motor"] = df_wheel[".wheel_motor_angular_vel"]
-    df_slip["Slip"] = 1 - df_slip["Omega_conveying"] / df_slip["Omega_motor"]
-    df_slip["Slip"] = df_slip["Slip"].fillna(0.5)
+    df_slip["Slip"] = df_slip["Omega_conveying"] / df_slip["Omega_motor"]
+    df_slip["Slip"] = df_slip["Slip"].fillna(df_slip.loc[5, "Slip"])
 
     df_slip["Time"] = pd.to_datetime(df_slip["Time"])
     df_slip["Time"] = df_slip["Time"] - df_slip.loc[0, "Time"]
@@ -130,7 +132,7 @@ def exp_slip(i: int) -> pd.DataFrame:
             + df_slip.loc[x, "Time"].microseconds / 1000000
         )
 
-        if not 0.45 <= df_slip.loc[x, "Slip"] <= 0.55:
+        if not 0 <= df_slip.loc[x, "Slip"] <= 1:
             df_slip = df_slip.drop(x)
 
     print(df_slip)
@@ -191,6 +193,34 @@ def sim_sinkage(i: int) -> pd.DataFrame:
     return df
 
 
+def sim_slip(i: int) -> pd.DataFrame:
+    """Read and calculate the slip for simulation."""
+    data_type = "simulationData"
+    csv_filename = "Velocity.txt"
+    filename = f"../data/{DATE}/{data_type}/{DATE}_{SR[i]}/{csv_filename}"
+
+    df = pd.read_csv(
+        filename,
+        sep=" ",
+        names=["Time", "Vx", "Vy", "Vz", "OmegaX", "OmegaY", "OmegaZ"],
+        skiprows=[0],
+    )
+
+    df["Slip"] = 1 - (df["Vx"] / (WHEEL_RADIUS * df["OmegaY"]))
+
+    for x in df.index:
+        if df.loc[x, "Time"] < 2:
+            df = df.drop(x)
+        else:
+            break
+
+    df = df.reset_index()
+    df["Time"] = df["Time"] - df.loc[0, "Time"]
+
+    # print(df)
+    return df
+
+
 def plot_data(sr_len: int, df_exp: dict = None, df_sim: dict = None):
     """Plot the data.
 
@@ -211,7 +241,7 @@ def plot_data(sr_len: int, df_exp: dict = None, df_sim: dict = None):
     plot_value = "Fx/Fz"
     fig["force"], ax["force"] = plt.subplots(constrained_layout=True)
     fig["sinkage"], ax["sinkage"] = plt.subplots(constrained_layout=True)
-    fig["slip"], ax["slip"] = plt.subplots(constrained_layout=True)
+    fig["slip"], ax["slip"] = plt.subplots()
 
     ax["force"].set(
         xlabel="Time",
@@ -271,6 +301,13 @@ def plot_data(sr_len: int, df_exp: dict = None, df_sim: dict = None):
             linestyle="-",
             label=f"Sim SR{SR[i]}",
         )
+        ax["slip"].plot(
+            "Time",
+            "Slip",
+            data=df_sim["slip"][i],
+            linestyle="-",
+            label=f"Sim SR{SR[i]}",
+        )
 
     """ax["force"].legend()
     fig["force"].show()
@@ -281,9 +318,6 @@ def plot_data(sr_len: int, df_exp: dict = None, df_sim: dict = None):
     ax["slip"].legend()
     # ax["slip"].imshow()
 
-    fig["force"].canvas.set_window_title(f"Force SR{SR}")
-    fig["sinkage"].canvas.set_window_title(f"Sinkage SR{SR}")
-    fig["slip"].canvas.set_window_title(f"Slip SR{SR}")
     plt.show()
 
 
@@ -307,6 +341,7 @@ def main():
         try:
             df_sim["force"].append(sim_force(i))
             df_sim["sinkage"].append(sim_sinkage(i))
+            df_sim["slip"].append(sim_slip(i))
         except FileNotFoundError as err:
             print(f"Simulation File not found: {err}")
 
