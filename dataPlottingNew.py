@@ -12,7 +12,7 @@ SLIP_CONSTANT = 1  # constant for angular velocity (should not matter)
 SR = list()  # slip ration value in percentage
 
 
-def exp_force(i: int) -> pd.DataFrame:
+def exp_force() -> pd.DataFrame:
     """Read the experiment force data.
 
     The axis for on wheel and estimator are different.
@@ -61,7 +61,7 @@ def exp_force(i: int) -> pd.DataFrame:
     return df
 
 
-def exp_sinkage(i: int) -> pd.DataFrame:
+def exp_sinkage() -> pd.DataFrame:
     """Read the experiment sinkage data."""
     data_type = "experimentData"
     csv_filename = "swt_driver-vertical_unit_log.csv"
@@ -94,11 +94,12 @@ def exp_sinkage(i: int) -> pd.DataFrame:
     return df
 
 
-def exp_slip(i: int) -> pd.DataFrame:
+def exp_slip() -> pd.DataFrame:
     """Read and calculate the slip values for experiment."""
     data_type = "experimentData"
     csv_filename_angular = "swt_driver-vertical_unit_log.csv"
     csv_filename_trans = "swt_driver-longitudinal_unit_log.csv"
+    df_slip = pd.DataFrame()
 
     filename_angular = (
         f"../data/{DATE}/{data_type}/{DATE}_{SR[i]}/{csv_filename_angular}"
@@ -107,17 +108,36 @@ def exp_slip(i: int) -> pd.DataFrame:
         f"../data/{DATE}/{data_type}/{DATE}_{SR[i]}/{csv_filename_trans}"
     )
 
-    df_angular = pd.read_csv(
+    df_wheel = pd.read_csv(
         filename_angular, usecols=["time", ".wheel_motor_angular_vel"]
     )
-    df_trans = pd.read_csv(
+    df_conveying = pd.read_csv(
         filename_trans, usecols=["time", ".conveying_motor_angular_vel"]
     )
 
-    df_slip["Time"] = df_angular["time"]
+    df_slip["Time"] = df_wheel["time"]
+    df_slip["Omega_conveying"] = df_conveying[".conveying_motor_angular_vel"]
+    df_slip["Omega_motor"] = df_wheel[".wheel_motor_angular_vel"]
+    df_slip["Slip"] = 1 - df_slip["Omega_conveying"] / df_slip["Omega_motor"]
+    df_slip["Slip"] = df_slip["Slip"].fillna(0.5)
+
+    df_slip["Time"] = pd.to_datetime(df_slip["Time"])
+    df_slip["Time"] = df_slip["Time"] - df_slip.loc[0, "Time"]
+
+    for x in df_slip.index:
+        df_slip.loc[x, "Time"] = (
+            df_slip.loc[x, "Time"].seconds
+            + df_slip.loc[x, "Time"].microseconds / 1000000
+        )
+
+        if not 0.45 <= df_slip.loc[x, "Slip"] <= 0.55:
+            df_slip = df_slip.drop(x)
+
+    print(df_slip)
+    return df_slip
 
 
-def sim_force(i: int) -> pd.DataFrame:
+def sim_force() -> pd.DataFrame:
     """Read the simulation force data."""
     data_type = "simulationData"
     csv_filename = "result_monitor.csv"
@@ -148,7 +168,7 @@ def sim_force(i: int) -> pd.DataFrame:
     return df
 
 
-def sim_sinkage(i: int) -> pd.DataFrame:
+def sim_sinkage() -> pd.DataFrame:
     """Read the simulation sinkae data."""
     data_type = "simulationData"
     csv_filename = "CenterOfMass.txt"
@@ -178,46 +198,65 @@ def plot_data(sr_len: int, df_exp: dict = None, df_sim: dict = None):
         sr_len: length of the slip ratio list
         df_exp: dict for experiment with the dataframes for each slip ratio
         df_sim: dict for simulation with the dataframes for each slip ratio
+        df_slip: dict for slip values of the experiment
     """
     if df_exp is None:
         df_exp = dict()
     if df_sim is None:
         df_sim = dict()
 
-    plot_value = "Fx/Fz"
-    fig, ax = plt.subplots(1, 2, constrained_layout=True)
+    fig = {"force": None, "sinkage": None, "slip": None}
+    ax = {"force": None, "sinkage": None, "slip": None}
 
-    ax[0].set(
+    plot_value = "Fx/Fz"
+    fig["force"], ax["force"] = plt.subplots(constrained_layout=True)
+    fig["sinkage"], ax["sinkage"] = plt.subplots(constrained_layout=True)
+    fig["slip"], ax["slip"] = plt.subplots(constrained_layout=True)
+
+    ax["force"].set(
         xlabel="Time",
         ylabel=plot_value,
         title=f"{plot_value}: SR{SR}",
         autoscale_on=True,
     )
-    ax[1].set(
+    ax["sinkage"].set(
         xlabel="Time",
         ylabel="Sinkage",
         title=f"Sinkage: SR{SR}",
         autoscale_on=True,
     )
+    ax["slip"].set(
+        xlabel="Time",
+        ylabel="Slip",
+        title=f"Slip: SR{SR}",
+        autoscale_on=True,
+    )
 
     for i in range(sr_len - 1):
 
-        """ax[0].plot(
+        """ax["force"].plot(
             "Time",
             plot_value,
             data=df_exp["force"][i],
             linestyle="-",
             label=f"Exp SR{SR[i]}",
-        )"""
-        """ax[1].plot(
+        )
+        ax["sinkage"].plot(
             "Time",
             "Sinkage",
             data=df_exp["sinkage"][i],
             linestyle="-",
             label=f"Exp SR{SR[i]}",
         )"""
+        ax["slip"].plot(
+            "Time",
+            "Slip",
+            data=df_exp["slip"][i],
+            linestyle="-",
+            label=f"Exp SR{SR[i]}",
+        )
 
-        ax[0].plot(
+        """ax["force"].plot(
             "Time",
             plot_value,
             data=df_sim["force"][i],
@@ -225,16 +264,26 @@ def plot_data(sr_len: int, df_exp: dict = None, df_sim: dict = None):
             label=f"Sim SR{SR[i]}",
         )
 
-        ax[1].plot(
+        ax["sinkage"].plot(
             "Time",
             "Sinkage",
             data=df_sim["sinkage"][i],
             linestyle="-",
             label=f"Sim SR{SR[i]}",
-        )
+        )"""
 
-    ax[0].legend()
-    ax[1].legend()
+    """ax["force"].legend()
+    fig["force"].show()
+
+    ax["sinkage"].legend()
+    fig["sinkage"].show()"""
+
+    ax["slip"].legend()
+    # ax["slip"].imshow()
+
+    fig["force"].canvas.set_window_title(f"Force SR{SR}")
+    fig["sinkage"].canvas.set_window_title(f"Sinkage SR{SR}")
+    fig["slip"].canvas.set_window_title(f"Slip SR{SR}")
     plt.show()
 
 
@@ -244,19 +293,20 @@ def main():
     df_exp: dict for experiment with the dataframes for each slip ratio
     df_sim: dict for simulation with the dataframes for each slip ratio
     """
-    df_exp = {"force": list(), "sinkage": list()}
-    df_sim = {"force": list(), "sinkage": list()}
+    df_exp = {"force": list(), "sinkage": list(), "slip": list()}
+    df_sim = {"force": list(), "sinkage": list(), "slip": list()}
 
     for i in range(len(sys.argv) - 1):
         try:
-            df_exp["force"].append(exp_force(i))
-            df_exp["sinkage"].append(exp_sinkage(i))
+            df_exp["force"].append(exp_force())
+            df_exp["sinkage"].append(exp_sinkage())
+            df_exp["slip"].append(exp_slip())
         except FileNotFoundError as err:
             print(f"Experiment File not found: {err}")
 
         try:
-            df_sim["force"].append(sim_force(i))
-            df_sim["sinkage"].append(sim_sinkage(i))
+            df_sim["force"].append(sim_force())
+            df_sim["sinkage"].append(sim_sinkage())
         except FileNotFoundError as err:
             print(f"Simulation File not found: {err}")
 
