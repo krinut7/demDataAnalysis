@@ -4,9 +4,12 @@ import pandas as pd
 from matplotlib import pyplot as plt
 import sys
 
+# from sklearn.preprocessing import PolynomialFeatures
+# from sklearn.linear_model import LinearRegression
+
 # from os.path import exists as file_exists
 
-DATE = 20220705
+DATE = 20220615
 WHEEL_WEIGHT = 50  # In N
 WHEEL_DIAMETER = 0.18  # In m
 WHEEL_RADIUS = WHEEL_DIAMETER / 2  # In m
@@ -60,6 +63,7 @@ def exp_force(i: int) -> pd.DataFrame:
         )
     # if not -1 <= df.loc[x, "Fx/Fz"] <= 1:  # removing extreme values
     # df = df.drop(x)
+    # print(df)
     return df
 
 
@@ -80,13 +84,14 @@ def exp_sinkage(i: int) -> pd.DataFrame:
             + df.loc[x, "time"].microseconds / 1000000
         )
 
-    for x in df.index:
+    """for x in df.index:
         if df.loc[x, ".wheel_sinkage"] != 0:
             df = df.drop(x)
         else:
             break
 
-    df = df.reset_index()
+    df = df.reset_index()"""
+    df[".wheel_sinkage"] = df[".wheel_sinkage"] - df.loc[x, ".wheel_sinkage"]
 
     _ = list(range(df.index.size - 5, df.index.size))
     df = df.drop(_)
@@ -103,24 +108,24 @@ def exp_slip(i: int) -> pd.DataFrame:
     csv_filename_trans = "swt_driver-longitudinal_unit_log.csv"
     df_slip = pd.DataFrame()
 
-    filename_angular = (
+    filename_wheel = (
         f"../data/{DATE}/{data_type}/{DATE}_{SR[i]}/{csv_filename_angular}"
     )
-    filename_trans = (
+    filename_conveying = (
         f"../data/{DATE}/{data_type}/{DATE}_{SR[i]}/{csv_filename_trans}"
     )
 
     df_wheel = pd.read_csv(
-        filename_angular, usecols=["time", ".wheel_motor_angular_vel"]
+        filename_wheel, usecols=["time", ".wheel_motor_angular_vel"]
     )
     df_conveying = pd.read_csv(
-        filename_trans, usecols=["time", ".conveying_motor_angular_vel"]
+        filename_conveying, usecols=["time", ".conveying_motor_angular_vel"]
     )
 
     df_slip["Time"] = df_wheel["time"]
     df_slip["Omega_conveying"] = df_conveying[".conveying_motor_angular_vel"]
     df_slip["Omega_motor"] = df_wheel[".wheel_motor_angular_vel"]
-    df_slip["Slip"] = df_slip["Omega_conveying"] / df_slip["Omega_motor"]
+    df_slip["Slip"] = 1 - df_slip["Omega_conveying"] / df_slip["Omega_motor"]
     df_slip["Slip"] = df_slip["Slip"].fillna(df_slip.loc[5, "Slip"])
 
     df_slip["Time"] = pd.to_datetime(df_slip["Time"])
@@ -132,10 +137,10 @@ def exp_slip(i: int) -> pd.DataFrame:
             + df_slip.loc[x, "Time"].microseconds / 1000000
         )
 
-        if not 0 <= df_slip.loc[x, "Slip"] <= 1:
-            df_slip = df_slip.drop(x)
+        # if not 0 <= df_slip.loc[x, "Slip"] <= 1:
+        # df_slip = df_slip.drop(x)
 
-    print(df_slip)
+    # print(df_slip)
     return df_slip
 
 
@@ -221,7 +226,23 @@ def sim_slip(i: int) -> pd.DataFrame:
     return df
 
 
-def plot_data(sr_len: int, df_exp: dict = None, df_sim: dict = None):
+def force_slip(df_sim_force: list) -> pd.DataFrame:
+    """Calculate the average of force values for each slip."""
+    df_force_avg = {"Slip": SR, "Force_Avg": list()}
+
+    for df in df_sim_force:
+        df_force_avg["Force_Avg"].append(abs(df["Fx"]).mean())
+
+    # print(df_sim_avg)
+    return pd.DataFrame(df_force_avg)
+
+
+def plot_data(
+    sr_len: int,
+    df_exp: dict = None,
+    df_sim: dict = None,
+    df_fslip: dict = None,
+):
     """Plot the data.
 
     Arguments:
@@ -234,14 +255,17 @@ def plot_data(sr_len: int, df_exp: dict = None, df_sim: dict = None):
         df_exp = dict()
     if df_sim is None:
         df_sim = dict()
+    if df_fslip is None:
+        df_fslip = dict()
 
-    fig = {"force": None, "sinkage": None, "slip": None}
-    ax = {"force": None, "sinkage": None, "slip": None}
+    fig = {"force": None, "sinkage": None, "slip": None, "fslip": None}
+    ax = {"force": None, "sinkage": None, "slip": None, "fslip": None}
 
-    plot_value = "Fx/Fz"
+    plot_value = "Fx"
     fig["force"], ax["force"] = plt.subplots(constrained_layout=True)
     fig["sinkage"], ax["sinkage"] = plt.subplots(constrained_layout=True)
-    fig["slip"], ax["slip"] = plt.subplots()
+    fig["slip"], ax["slip"] = plt.subplots(constrained_layout=True)
+    fig["fslip"], ax["fslip"] = plt.subplots(constrained_layout=True)
 
     ax["force"].set(
         xlabel="Time",
@@ -261,10 +285,16 @@ def plot_data(sr_len: int, df_exp: dict = None, df_sim: dict = None):
         title=f"Slip: SR{SR}",
         autoscale_on=True,
     )
+    ax["fslip"].set(
+        xlabel="Slip",
+        ylabel=plot_value,
+        title=f"{plot_value} vs. Slip",
+        autoscale_on=True,
+    )
 
     for i in range(sr_len - 1):
 
-        """ax["force"].plot(
+        ax["force"].plot(
             "Time",
             plot_value,
             data=df_exp["force"][i],
@@ -277,7 +307,7 @@ def plot_data(sr_len: int, df_exp: dict = None, df_sim: dict = None):
             data=df_exp["sinkage"][i],
             linestyle="-",
             label=f"Exp SR{SR[i]}",
-        )"""
+        )
         ax["slip"].plot(
             "Time",
             "Slip",
@@ -301,7 +331,7 @@ def plot_data(sr_len: int, df_exp: dict = None, df_sim: dict = None):
             linestyle="-",
             label=f"Sim SR{SR[i]}",
         )
-        x["slip"].plot(
+        ax["slip"].plot(
             "Time",
             "Slip",
             data=df_sim["slip"][i],
@@ -309,13 +339,21 @@ def plot_data(sr_len: int, df_exp: dict = None, df_sim: dict = None):
             label=f"Sim SR{SR[i]}",
         )"""
 
-    """ax["force"].legend()
-    fig["force"].show()
+    print(df_fslip)
+    for key in df_fslip:
+        ax["fslip"].scatter(
+            "Slip",
+            "Force_Avg",
+            data=df_fslip[key],
+            linestyle="-",
+            label=f"{key} vs. Slip",
+        )
 
+    ax["force"].legend()
     ax["sinkage"].legend()
-    fig["sinkage"].show()"""
-
     ax["slip"].legend()
+    ax["fslip"].legend()
+
     # ax["slip"].imshow()
 
     plt.show()
@@ -329,6 +367,7 @@ def main():
     """
     df_exp = {"force": list(), "sinkage": list(), "slip": list()}
     df_sim = {"force": list(), "sinkage": list(), "slip": list()}
+    df_fslip = dict()
 
     for i in range(len(sys.argv) - 1):
         try:
@@ -345,7 +384,12 @@ def main():
         except FileNotFoundError as err:
             print(f"Simulation File not found: {err}")
 
-    plot_data(len(sys.argv), df_exp, df_sim)
+    df_fslip["exp"] = force_slip(df_exp["force"])
+    df_fslip["sim"] = force_slip(df_sim["force"])
+
+    print(df_fslip)
+
+    plot_data(len(sys.argv), df_exp, df_sim, df_fslip)
 
 
 if __name__ == "__main__":
