@@ -10,7 +10,7 @@ from sklearn.linear_model import LinearRegression
 
 # from os.path import exists as file_exists
 
-DATE = 20220615
+DATE = 20220713
 WHEEL_WEIGHT = 50  # In N
 WHEEL_DIAMETER = 0.18  # In m
 WHEEL_RADIUS = WHEEL_DIAMETER / 2  # In m
@@ -62,9 +62,11 @@ def exp_force(i: int) -> pd.DataFrame:
             df.loc[x, "Time"].seconds
             + df.loc[x, "Time"].microseconds / 1000000
         )
-    # if not -1 <= df.loc[x, "Fx/Fz"] <= 1:  # removing extreme values
-    # df = df.drop(x)
-    # print(df)
+
+    df = df.drop(df[df.Time < 1].index)
+    df = df.drop(df[df.Time > df.iloc[-1]["Time"] - 2].index).reset_index()
+    df["Time"] = df["Time"] - df.loc[0, "Time"]
+
     return df
 
 
@@ -85,20 +87,15 @@ def exp_sinkage(i: int) -> pd.DataFrame:
             + df.loc[x, "time"].microseconds / 1000000
         )
 
-    """for x in df.index:
-        if df.loc[x, ".wheel_sinkage"] != 0:
-            df = df.drop(x)
-        else:
-            break
-
-    df = df.reset_index()"""
-    df[".wheel_sinkage"] = df[".wheel_sinkage"] - df.loc[x, ".wheel_sinkage"]
-
     _ = list(range(df.index.size - 5, df.index.size))
     df = df.drop(_)
 
     df = df.rename(columns={"time": "Time", ".wheel_sinkage": "Sinkage"})
-    # print(df)
+
+    df = df.drop(df[df.Time < 1].index)
+    df = df.drop(df[df.Time > df.iloc[-1]["Time"] - 2].index).reset_index()
+    df["Time"] = df["Time"] - df.loc[0, "Time"]
+
     return df
 
 
@@ -107,7 +104,7 @@ def exp_slip(i: int) -> pd.DataFrame:
     data_type = "experimentData"
     csv_filename_angular = "swt_driver-vertical_unit_log.csv"
     csv_filename_trans = "swt_driver-longitudinal_unit_log.csv"
-    df_slip = pd.DataFrame()
+    df = pd.DataFrame()
 
     filename_wheel = (
         f"../data/{DATE}/{data_type}/{DATE}_{SR[i]}/{csv_filename_angular}"
@@ -123,26 +120,26 @@ def exp_slip(i: int) -> pd.DataFrame:
         filename_conveying, usecols=["time", ".conveying_motor_angular_vel"]
     )
 
-    df_slip["Time"] = df_wheel["time"]
-    df_slip["Omega_conveying"] = df_conveying[".conveying_motor_angular_vel"]
-    df_slip["Omega_motor"] = df_wheel[".wheel_motor_angular_vel"]
-    df_slip["Slip"] = 1 - df_slip["Omega_conveying"] / df_slip["Omega_motor"]
-    df_slip["Slip"] = df_slip["Slip"].fillna(df_slip.loc[5, "Slip"])
+    df["Time"] = df_wheel["time"]
+    df["Omega_conveying"] = df_conveying[".conveying_motor_angular_vel"]
+    df["Omega_motor"] = df_wheel[".wheel_motor_angular_vel"]
+    df["Slip"] = 1 - df["Omega_conveying"] / df["Omega_motor"]
+    df["Slip"] = df["Slip"].fillna(df.loc[5, "Slip"])
 
-    df_slip["Time"] = pd.to_datetime(df_slip["Time"])
-    df_slip["Time"] = df_slip["Time"] - df_slip.loc[0, "Time"]
+    df["Time"] = pd.to_datetime(df["Time"])
+    df["Time"] = df["Time"] - df.loc[0, "Time"]
 
-    for x in df_slip.index:
-        df_slip.loc[x, "Time"] = (
-            df_slip.loc[x, "Time"].seconds
-            + df_slip.loc[x, "Time"].microseconds / 1000000
+    for x in df.index:
+        df.loc[x, "Time"] = (
+            df.loc[x, "Time"].seconds
+            + df.loc[x, "Time"].microseconds / 1000000
         )
 
-        # if not 0 <= df_slip.loc[x, "Slip"] <= 1:
-        # df_slip = df_slip.drop(x)
+    df = df.drop(df[df.Time < 1].index)
+    df = df.drop(df[df.Time > df.iloc[-1]["Time"] - 2].index).reset_index()
+    df["Time"] = df["Time"] - df.loc[0, "Time"]
 
-    # print(df_slip)
-    return df_slip
+    return df
 
 
 def sim_force(i: int) -> pd.DataFrame:
@@ -157,13 +154,7 @@ def sim_force(i: int) -> pd.DataFrame:
         usecols=["Time", "wheel.fx", "wheel.fy", "wheel.fz"],
     )
 
-    for x in df.index:
-        if df.loc[x, "Time"] < 2:
-            df = df.drop(x)
-        else:
-            break
-
-    df = df.reset_index()
+    df = df.drop(df[df.Time < 2].index).reset_index()
 
     df["Fx/Fz"] = df["wheel.fx"] / WHEEL_WEIGHT
     df["Fx/Fz"] = df["Fx/Fz"].fillna(0)
@@ -186,14 +177,9 @@ def sim_sinkage(i: int) -> pd.DataFrame:
         filename, sep=" ", names=["Time", "Sinkage"], skiprows=[0]
     )
 
-    for x in df.index:
-        if df.loc[x, "Time"] < 2:
-            df = df.drop(x)
-        else:
-            break
-
-    df = df.reset_index()
+    df = df.drop(df[df.Time < 2].index).reset_index()
     df["Time"] = df["Time"] - df.loc[0, "Time"]
+    df["Sinkage"] = -1 * df["Sinkage"]
     df["Sinkage"] = df["Sinkage"] - df.loc[0, "Sinkage"]
 
     return df
@@ -214,13 +200,8 @@ def sim_slip(i: int) -> pd.DataFrame:
 
     df["Slip"] = 1 - (df["Vx"] / (WHEEL_RADIUS * df["OmegaY"]))
 
-    for x in df.index:
-        if df.loc[x, "Time"] < 2:
-            df = df.drop(x)
-        else:
-            break
+    df = df.drop(df[df.Time < 2].index).reset_index()
 
-    df = df.reset_index()
     df["Time"] = df["Time"] - df.loc[0, "Time"]
 
     # print(df)
@@ -285,7 +266,8 @@ def plot_data(
     fig = {"force": None, "sinkage": None, "slip": None, "fslip": None}
     ax = {"force": None, "sinkage": None, "slip": None, "fslip": None}
 
-    plot_value = "Fx"
+    plot_value = "Fx/Fz"
+
     fig["force"], ax["force"] = plt.subplots(constrained_layout=True)
     fig["sinkage"], ax["sinkage"] = plt.subplots(constrained_layout=True)
     fig["slip"], ax["slip"] = plt.subplots(constrained_layout=True)
@@ -318,7 +300,7 @@ def plot_data(
 
     for i in range(sr_len - 1):
 
-        ax["force"].plot(
+        """ax["force"].plot(
             "Time",
             plot_value,
             data=df_exp["force"][i],
@@ -338,9 +320,9 @@ def plot_data(
             data=df_exp["slip"][i],
             linestyle="-",
             label=f"Exp SR{SR[i]}",
-        )
+        )"""
 
-        """ax["force"].plot(
+        ax["force"].plot(
             "Time",
             plot_value,
             data=df_sim["force"][i],
@@ -361,9 +343,9 @@ def plot_data(
             data=df_sim["slip"][i],
             linestyle="-",
             label=f"Sim SR{SR[i]}",
-        )"""
+        )
 
-    print(df_fslip)
+    """print(df_fslip)
     for key in df_fslip:
         df = df_fslip[key]
         X = df["Slip"].to_numpy()
@@ -374,7 +356,7 @@ def plot_data(
             linestyle="-",
             label=f"{key} vs. Slip",
         )
-        ax["fslip"].plot(X, pol_reg_dict[key])
+        ax["fslip"].plot(X, pol_reg_dict[key])"""
 
     ax["force"].legend()
     ax["sinkage"].legend()
@@ -415,7 +397,7 @@ def main():
     df_fslip["exp"] = force_slip(df_exp["force"])
     df_fslip["sim"] = force_slip(df_sim["force"])
 
-    pol_reg_dict = curve_fitting(df_fslip)
+    # pol_reg_dict = curve_fitting(df_fslip)
     plot_data(len(sys.argv), df_exp, df_sim, df_fslip, pol_reg_dict)
 
 
