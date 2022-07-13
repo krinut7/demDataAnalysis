@@ -390,10 +390,9 @@ def plot_data(
             label=f"Sim SR{SR[i]}",
         )
 
-    """print(df_fslip)
     for key in df_fslip:
         df = df_fslip[key]
-        X = df["Slip"].to_numpy()
+        # X = df["Slip"].to_numpy()
         ax["fslip"].scatter(
             "Slip",
             "Force_Avg",
@@ -401,7 +400,7 @@ def plot_data(
             linestyle="-",
             label=f"{key} vs. Slip",
         )
-        ax["fslip"].plot(X, pol_reg_dict[key])"""
+        # ax["fslip"].plot(X, pol_reg_dict[key])
 
     ax["force"].legend()
     ax["sinkage"].legend()
@@ -442,6 +441,7 @@ def main():
     df_fslip["exp"] = force_slip(df_exp["force"])
     df_fslip["sim"] = force_slip(df_sim["force"])
 
+    print(df_fslip)
     # pol_reg_dict = curve_fitting(df_fslip)
     plot_data(len(sys.argv), df_exp, df_sim, df_fslip, pol_reg_dict)
 
