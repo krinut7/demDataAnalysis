@@ -3,9 +3,10 @@
 import pandas as pd
 from matplotlib import pyplot as plt
 import sys
+from sklearn.preprocessing import PolynomialFeatures
+from sklearn.linear_model import LinearRegression
 
-# from sklearn.preprocessing import PolynomialFeatures
-# from sklearn.linear_model import LinearRegression
+# import numpy as np
 
 # from os.path import exists as file_exists
 
@@ -226,15 +227,35 @@ def sim_slip(i: int) -> pd.DataFrame:
     return df
 
 
-def force_slip(df_sim_force: list) -> pd.DataFrame:
+def force_slip(df: list) -> pd.DataFrame:
     """Calculate the average of force values for each slip."""
     df_force_avg = {"Slip": SR, "Force_Avg": list()}
 
-    for df in df_sim_force:
+    for df in df:
         df_force_avg["Force_Avg"].append(abs(df["Fx"]).mean())
 
     # print(df_sim_avg)
     return pd.DataFrame(df_force_avg)
+
+
+def curve_fitting(df_fslip: dict):
+    """Fit the curve using polynomial regression."""
+    # pol_reg.predict(poly_reg.fit_transform(X))
+    pol_reg_dict = dict()
+
+    for key in df_fslip:
+        df = df_fslip[key]
+        X = df["Slip"].astype(int).to_numpy()
+        y = df["Force_Avg"].to_numpy()
+        print(X, y)
+        poly_reg = PolynomialFeatures(degree=3)
+        X_poly = poly_reg.fit_transform(X.reshape(-1, 1))
+        print(X_poly)
+        pol_reg = LinearRegression()
+        pol_reg.fit(X_poly, y)
+        pol_reg_dict[key] = pol_reg.predict(poly_reg.fit_transform(X))
+
+    return pol_reg_dict
 
 
 def plot_data(
@@ -242,6 +263,7 @@ def plot_data(
     df_exp: dict = None,
     df_sim: dict = None,
     df_fslip: dict = None,
+    pol_reg_dict: dict = None,
 ):
     """Plot the data.
 
@@ -257,6 +279,8 @@ def plot_data(
         df_sim = dict()
     if df_fslip is None:
         df_fslip = dict()
+    if pol_reg_dict is None:
+        pol_reg_dict = dict()
 
     fig = {"force": None, "sinkage": None, "slip": None, "fslip": None}
     ax = {"force": None, "sinkage": None, "slip": None, "fslip": None}
@@ -341,13 +365,16 @@ def plot_data(
 
     print(df_fslip)
     for key in df_fslip:
+        df = df_fslip[key]
+        X = df["Slip"].to_numpy()
         ax["fslip"].scatter(
             "Slip",
             "Force_Avg",
-            data=df_fslip[key],
+            data=df,
             linestyle="-",
             label=f"{key} vs. Slip",
         )
+        ax["fslip"].plot(X, pol_reg_dict[key])
 
     ax["force"].legend()
     ax["sinkage"].legend()
@@ -368,6 +395,7 @@ def main():
     df_exp = {"force": list(), "sinkage": list(), "slip": list()}
     df_sim = {"force": list(), "sinkage": list(), "slip": list()}
     df_fslip = dict()
+    pol_reg_dict = dict()
 
     for i in range(len(sys.argv) - 1):
         try:
@@ -387,9 +415,8 @@ def main():
     df_fslip["exp"] = force_slip(df_exp["force"])
     df_fslip["sim"] = force_slip(df_sim["force"])
 
-    print(df_fslip)
-
-    plot_data(len(sys.argv), df_exp, df_sim, df_fslip)
+    pol_reg_dict = curve_fitting(df_fslip)
+    plot_data(len(sys.argv), df_exp, df_sim, df_fslip, pol_reg_dict)
 
 
 if __name__ == "__main__":
