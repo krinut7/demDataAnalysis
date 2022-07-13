@@ -21,10 +21,20 @@ SR = list()  # slip ration value in percentage
 def exp_force(i: int) -> pd.DataFrame:
     """Read the experiment force data.
 
+    Arguments:
+        i (int): INdex for SR list
+    Return:
+        df (pd.DataFrame): df with exp_force values
+
     The axis for on wheel and estimator are different.
     Estimator is the conventional axis.
     Estimator -> On wheel: Fx -> -Fy, Fy -> -Fx, Fz -> -Fz
                            Mx -> -My, My -> -Mz, Mz -> -Mx
+    - The columns are renamed according to the above convention.
+    - Signs for Fy and Fz are changed.
+    - Time is changed: string -> datetime -> seconds
+    - Values for intitial 1 sec and last 2 secs are dropped.
+
     """
     data_type = "experimentData"
     csv_filename = "leptrino_force_torque_on_wheel-force_torque.csv"
@@ -71,7 +81,17 @@ def exp_force(i: int) -> pd.DataFrame:
 
 
 def exp_sinkage(i: int) -> pd.DataFrame:
-    """Read the experiment sinkage data."""
+    """Read the experiment sinkage data.
+
+    Arguments:
+        i (int): INdex for SR list
+    Return:
+        df (pd.DataFrame): df with exp_sinkage values
+
+    - Change time: string -> datetime -> seconds
+    - Rename Columns.
+    - Drop intial sec and last 2 seconds
+    """
     data_type = "experimentData"
     csv_filename = "swt_driver-vertical_unit_log.csv"
     filename = f"../data/{DATE}/{data_type}/{DATE}_{SR[i]}/{csv_filename}"
@@ -87,9 +107,6 @@ def exp_sinkage(i: int) -> pd.DataFrame:
             + df.loc[x, "time"].microseconds / 1000000
         )
 
-    _ = list(range(df.index.size - 5, df.index.size))
-    df = df.drop(_)
-
     df = df.rename(columns={"time": "Time", ".wheel_sinkage": "Sinkage"})
 
     df = df.drop(df[df.Time < 1].index)
@@ -100,7 +117,19 @@ def exp_sinkage(i: int) -> pd.DataFrame:
 
 
 def exp_slip(i: int) -> pd.DataFrame:
-    """Read and calculate the slip values for experiment."""
+    """Read and calculate the slip values for experiment.
+
+    Arguments:
+        i (int): INdex for SR list
+    Return:
+        df (pd.DataFrame): df with exp_slip values
+
+    Algorithm:
+        - Calulate slip by taking the values of conveying motor and wheel
+         motor angular velocity.
+        - Formula for slip: 1 - (omega_r)/v
+        - drop intial 1 sec and last 2 secs
+    """
     data_type = "experimentData"
     csv_filename_angular = "swt_driver-vertical_unit_log.csv"
     csv_filename_trans = "swt_driver-longitudinal_unit_log.csv"
@@ -123,7 +152,7 @@ def exp_slip(i: int) -> pd.DataFrame:
     df["Time"] = df_wheel["time"]
     df["Omega_conveying"] = df_conveying[".conveying_motor_angular_vel"]
     df["Omega_motor"] = df_wheel[".wheel_motor_angular_vel"]
-    df["Slip"] = 1 - df["Omega_conveying"] / df["Omega_motor"]
+    df["Slip"] = 1 - df["Omega_motor"] / df["Omega_conveying"]
     df["Slip"] = df["Slip"].fillna(df.loc[5, "Slip"])
 
     df["Time"] = pd.to_datetime(df["Time"])
@@ -143,7 +172,16 @@ def exp_slip(i: int) -> pd.DataFrame:
 
 
 def sim_force(i: int) -> pd.DataFrame:
-    """Read the simulation force data."""
+    """Read the simulation force data.
+
+    Arguments:
+         i (int): INdex for SR list
+    Return:
+         df (pd.DataFrame): df with sim_force values)
+
+    - First 2 seconds are dropped
+    - Fx is divided by WHEEL_WEIGHT
+    """
     data_type = "simulationData"
     csv_filename = "result_monitor.csv"
     filename = f"../data/{DATE}/{data_type}/{DATE}_{SR[i]}/{csv_filename}"
@@ -168,7 +206,16 @@ def sim_force(i: int) -> pd.DataFrame:
 
 
 def sim_sinkage(i: int) -> pd.DataFrame:
-    """Read the simulation sinkae data."""
+    """Read the simulation sinkae data.
+
+    Arguments:
+         i (int): INdex for SR list
+    Return:
+         df (pd.DataFrame): df with sim_sinkage values
+
+    - First 2 secs are dopped.
+    - Change sign of sinkage and subtract from the initial value.
+    """
     data_type = "simulationData"
     csv_filename = "CenterOfMass.txt"
     filename = f"../data/{DATE}/{data_type}/{DATE}_{SR[i]}/{csv_filename}"
@@ -199,9 +246,7 @@ def sim_slip(i: int) -> pd.DataFrame:
     )
 
     df["Slip"] = 1 - (df["Vx"] / (WHEEL_RADIUS * df["OmegaY"]))
-
     df = df.drop(df[df.Time < 2].index).reset_index()
-
     df["Time"] = df["Time"] - df.loc[0, "Time"]
 
     # print(df)
