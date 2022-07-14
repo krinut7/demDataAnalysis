@@ -5,6 +5,7 @@ from matplotlib import pyplot as plt
 import sys
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn.linear_model import LinearRegression
+import seaborn as sns
 
 # import numpy as np
 
@@ -337,7 +338,7 @@ def force_slip(df: list) -> pd.DataFrame:
     df_force_avg = {"Slip": SR, "Force_Avg": list()}
 
     for df in df:
-        df_force_avg["Force_Avg"].append(abs(df["Fx"]).mean())
+        df_force_avg["Force_Avg"].append(abs(df["Fx/Fz"]).mean())
 
     # print(df_sim_avg)
     return pd.DataFrame(df_force_avg)
@@ -448,8 +449,8 @@ def plot_data(
     )
     ax["fslip"].set(
         xlabel="Slip (%)",
-        ylabel="Fx (N)",
-        title="Fx vs. Slip",
+        ylabel="Fx/Fz",
+        title="Fx/Fz vs. Slip",
         autoscale_on=True,
     )
 
@@ -500,17 +501,14 @@ def plot_data(
             label=f"Sim SR{SR[i]}",
         )"""
 
-    for key in df_fslip:
-        df = df_fslip[key]
-        # X = df["Slip"].to_numpy()
-        ax["fslip"].scatter(
-            "Slip",
-            "Force_Avg",
-            data=df,
-            linestyle="-",
-            label=f"{key}",
-        )
-        # ax["fslip"].plot(X, pol_reg_dict[key])
+    ax["fslip"].scatter(
+        "Slip",
+        "Force_Avg",
+        data=df_fslip["sim"],
+        linestyle="-",
+        label="sim",
+    )
+    # ax["fslip"].plot(X, pol_reg_dict[key])
 
     ax["force"].legend()
     ax["sinkage"].legend()
@@ -522,13 +520,13 @@ def plot_data(
     # fig["force"].savefig(f"../figures/simulation/exp_fz_{SR}.png")
     # fig["sinkage"].savefig(f"../figures/experiment/exp_sinkage_{SR}.png")
     # fig["slip"].savefig("../figures/sim_slip_10.png")
-    fig["fslip"].savefig(f"../figures/exp_sim/exp_sim_fslip_{SR}.png")
+    fig["fslip"].savefig(f"../figures/simulation/sim_fslip_fxfz_{SR}.png")
     # ax["fslip"].legend()
     fig["force"].show()
     fig["sinkage"].show()
     # fig["slip"].show()
     # fig["fslip"].show()
-    # plt.show()
+    plt.show()
 
 
 def main():
@@ -563,7 +561,7 @@ def main():
     # print(df_fslip)
     # pol_reg_dict = curve_fitting(df_fslip)
     plot_data(len(sys.argv), df_exp, df_sim, df_fslip, pol_reg_dict)
-    plot_regression_line(df_fslip)
+    # plot_regression_line(df_fslip)
 
 
 if __name__ == "__main__":
