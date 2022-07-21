@@ -29,14 +29,10 @@ def exp_force(i: int) -> pd.DataFrame:
     """
     data_type = "experimentData"
     csv_filename_onwheel = "leptrino_force_torque_on_wheel-force_torque.csv"
-    csv_filename_estimator = "force_and_torque_estimator-force_torque.csv"
     csv_filename_inside = "leptrino_force_torque_center-force_torque.csv"
 
     filename_onwheel = (
         f"../data/{DATE}/{data_type}/{DATE}_{SR[i]}/2/{csv_filename_onwheel}"
-    )
-    filename_estimator = (
-        f"../data/{DATE}/{data_type}/{DATE}_{SR[i]}/2/{csv_filename_estimator}"
     )
     filename_inside = (
         f"../data/{DATE}/{data_type}/{DATE}_{SR[i]}/2/{csv_filename_inside}"
@@ -63,23 +59,6 @@ def exp_force(i: int) -> pd.DataFrame:
         }
     )
 
-    df_estimator = pd.read_csv(
-        filename_estimator,
-        usecols=[
-            "time",
-            ".wrench.force.x",
-            ".wrench.force.y",
-            ".wrench.force.z",
-        ],
-    )
-    df_estimator = df_estimator.rename(
-        columns={
-            ".wrench.force.x": "Fx",  # check out the docstring
-            ".wrench.force.y": "Fy",
-            ".wrench.force.z": "Fz",
-            "time": "Time",
-        }
-    )
     df_inside = pd.read_csv(
         filename_inside,
         usecols=[
@@ -120,6 +99,7 @@ def exp_force(i: int) -> pd.DataFrame:
 
     df["Time"] = df["Time"] - df.loc[0, "Time"]
     df["Sample"] = range(0, len(df))
+    df["Moving_Avg"] = df[PLOT_VALUE].ewm(span=100).mean()
 
     return df
 
@@ -158,6 +138,7 @@ def exp_sinkage(i: int) -> pd.DataFrame:
     df["Time"] = df["Time"] - df.loc[0, "Time"]
     df["Sinkage"] = (df["Sinkage"] - df.loc[0, "Sinkage"]) / (10e6)
     df["Sample"] = range(0, len(df))
+    df["Moving_Avg"] = df["Sinkage"].ewm(span=100).mean()
 
     return df
 
@@ -214,6 +195,7 @@ def exp_slip(i: int) -> pd.DataFrame:
     df = df.drop(df[df.Time > df.iloc[-1]["Time"] - 2].index).reset_index()
     df["Time"] = df["Time"] - df.loc[0, "Time"]
     df["Sample"] = range(0, len(df))
+    df["Moving_Avg"] = df["Slip"].ewm(span=100).mean()
 
     return df
 
@@ -251,6 +233,7 @@ def sim_force(i: int) -> pd.DataFrame:
         columns={"wheel.fx": "Fx", "wheel.fy": "Fy", "wheel.fz": "Fz"}
     )
     df["Sample"] = range(0, len(df))
+    df["Moving_Avg"] = df[PLOT_VALUE].ewm(span=100).mean()
     return df
 
 
@@ -278,6 +261,7 @@ def sim_sinkage(i: int) -> pd.DataFrame:
     df["Sinkage"] = -1 * df["Sinkage"]
     df["Sinkage"] = df["Sinkage"] - df.loc[0, "Sinkage"]
     df["Sample"] = range(0, len(df))
+    df["Moving_Avg"] = df["Sinkage"].ewm(span=100).mean()
 
     return df
 
@@ -299,6 +283,7 @@ def sim_slip(i: int) -> pd.DataFrame:
     df = df.drop(df[df.Time < 2].index).reset_index()
     df["Time"] = df["Time"] - df.loc[0, "Time"]
     df["Sample"] = range(0, len(df))
+    df["Moving_Avg"] = df["Slip"].ewm(span=100).mean()
 
     return df
 
@@ -353,7 +338,9 @@ def plot_data(
         ylabel=yaxis_,
         title=f"{yaxis_} SR:{SR}",
     )
-    AX[plot_grid].plot(
+
+    # plotting raw values
+    """AX[plot_grid].plot(
         "Sample",
         yaxis_,
         data=df_exp,
@@ -366,7 +353,24 @@ def plot_data(
         data=df_sim,
         linestyle="-",
         label=f"Sim SR{SR[i]}",
+    )"""
+
+    # plotting moving average
+    AX[plot_grid].plot(
+        "Sample",
+        "Moving_Avg",
+        data=df_exp,
+        linestyle="-",
+        label=f"Exp Moving Avg. SR{SR[i]}",
     )
+    AX[plot_grid].plot(
+        "Sample",
+        "Moving_Avg",
+        data=df_sim,
+        linestyle="-",
+        label=f"Sim Moving Avg. SR{SR[i]}",
+    )
+
     AX[plot_grid].legend()
 
 
