@@ -49,15 +49,7 @@ def exp_force(i: int) -> pd.DataFrame:
             ".wrench.force.z",
         ],
     )
-
-    df_onwheel = df_onwheel.rename(
-        columns={
-            ".wrench.force.x": "Fx",
-            ".wrench.force.y": "Fy",
-            ".wrench.force.z": "Fz",
-            "time": "Time",
-        }
-    )
+    df_onwheel.columns = ["Time", "Fx", "Fy", "Fz"]
 
     df_inside = pd.read_csv(
         filename_inside,
@@ -68,14 +60,7 @@ def exp_force(i: int) -> pd.DataFrame:
             ".wrench.force.z",
         ],
     )
-    df_inside = df_inside.rename(
-        columns={
-            ".wrench.force.x": "Fx",  # check out the docstring
-            ".wrench.force.y": "Fy",
-            ".wrench.force.z": "Fz",
-            "time": "Time",
-        }
-    )
+    df_inside.columns = ["Time", "Fx", "Fy", "Fz"]
 
     df_onwheel["Fy"] = -1 * df_onwheel["Fy"]
     df_onwheel["Fz"] = -1 * df_onwheel["Fz"]
@@ -121,21 +106,21 @@ def exp_sinkage(i: int) -> pd.DataFrame:
     filename = f"../data/{DATE}/{data_type}/{DATE}_{SR[i]}/{csv_filename}"
 
     df = pd.read_csv(filename, usecols=["time", ".traveling_distance"])
+    df.columns = ["Time", "Sinkage"]
 
-    df["time"] = pd.to_datetime(df["time"])
-    df["time"] = df["time"] - df.loc[0, "time"]
+    df["Time"] = pd.to_datetime(df["Time"])
+    df["Time"] = df["Time"] - df.loc[0, "Time"]
 
     for x in df.index:
-        df.loc[x, "time"] = (
-            df.loc[x, "time"].seconds
-            + df.loc[x, "time"].microseconds / 1000000
+        df.loc[x, "Time"] = (
+            df.loc[x, "Time"].seconds
+            + df.loc[x, "Time"].microseconds / 1000000
         )
-
-    df = df.rename(columns={"time": "Time", ".traveling_distance": "Sinkage"})
 
     df = df.drop(df[df.Time < 3].index)
     df = df.drop(df[df.Time > df.iloc[-1]["Time"] - 2].index).reset_index()
     df["Time"] = df["Time"] - df.loc[0, "Time"]
+
     df["Sinkage"] = (df["Sinkage"] - df.loc[0, "Sinkage"]) / (10e6)
     df["Sample"] = range(0, len(df))
     df["Moving_Avg"] = df["Sinkage"].ewm(span=100).mean()
@@ -220,18 +205,16 @@ def sim_force(i: int) -> pd.DataFrame:
         header=1,
         usecols=["Time", "wheel.fx", "wheel.fy", "wheel.fz"],
     )
+    df.columns = ["Time", "Fx", "Fy", "Fz"]
 
     df = df.drop(df[df.Time < 2].index).reset_index()
 
-    df["wheel.fz"] = df["wheel.fz"] + WHEEL_WEIGHT
-    df["Fx/Fz"] = df["wheel.fx"] / df["wheel.fz"]
-    avg = abs(df["wheel.fx"]).mean() / abs(df["wheel.fz"]).mean()
+    df["Fz"] = df["Fz"] + WHEEL_WEIGHT
+    df["Fx/Fz"] = df["Fx"] / df["Fz"]
+    avg = abs(df["Fx"]).mean() / abs(df["Fz"]).mean()
     df["Fx/Fz"] = df["Fx/Fz"].fillna(avg)
     df["Time"] = df["Time"] - df.loc[0, "Time"]
 
-    df = df.rename(
-        columns={"wheel.fx": "Fx", "wheel.fy": "Fy", "wheel.fz": "Fz"}
-    )
     df["Sample"] = range(0, len(df))
     df["Moving_Avg"] = df[PLOT_VALUE].ewm(span=100).mean()
     return df
