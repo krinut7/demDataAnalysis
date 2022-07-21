@@ -1,18 +1,12 @@
 """PLot data collected from simulation and experiments."""
 
+import string
 import pandas as pd
 from matplotlib import pyplot as plt
 import sys
-from sklearn.preprocessing import PolynomialFeatures
-from sklearn.linear_model import LinearRegression
 import seaborn as sns
 
-DATE = 20220713
-WHEEL_WEIGHT = 50  # In N
-WHEEL_DIAMETER = 0.18  # In m
-WHEEL_RADIUS = WHEEL_DIAMETER / 2  # In m
-SLIP_CONSTANT = 1  # constant for angular velocity (should not matter)
-SR = list()  # slip ration value in percentage
+from dataPlotting import DataFrame
 
 
 def exp_force(i: int) -> pd.DataFrame:
@@ -104,25 +98,17 @@ def exp_force(i: int) -> pd.DataFrame:
         }
     )
 
-    # df_onwheel["Fx"] = -1 * df_onwheel["Fx"]
     df_onwheel["Fy"] = -1 * df_onwheel["Fy"]
     df_onwheel["Fz"] = -1 * df_onwheel["Fz"]
 
-    """df_inside["Fx"] = -1 * df_inside["Fx"]
-    df_inside["Fy"] = -1 * df_inside["Fy"]"""
-
     t1 = df_onwheel.loc[0, "Fy"] - df_inside.loc[0, "Fy"]  # for Fx
     t2 = df_onwheel.loc[0, "Fz"] - df_inside.loc[0, "Fx"]
-    # t3 = df_estimator.loc[0, "Fz"] - df_onwheel.loc[0, "Fz"]
 
     df["Fx"] = df_onwheel["Fy"] - t1
-    # df["Fy"] = df_onwheel["Fy"] + t2
     df["Fz"] = df_onwheel["Fz"] - t2
     df["Time"] = df_onwheel["Time"]
 
     df["Fx/Fz"] = df["Fx"] / df["Fz"]
-    # avg = abs(df["Fx"]).mean() / abs(df["Fz"]).mean()
-    # df["Fx/Fz"] = df["Fx/Fz"].fillna(0)
     df["Time"] = pd.to_datetime(df["Time"])
     df["Time"] = df["Time"] - df.loc[0, "Time"]
 
@@ -132,15 +118,6 @@ def exp_force(i: int) -> pd.DataFrame:
             + df.loc[x, "Time"].microseconds / 1000000
         )
 
-    # df = df.drop(df[df.Time < 1].index)
-    # df = df.drop(df[df.Time > df.iloc[-1]["Time"] - 2].index).reset_index()
-    # print(abs(df["Fx/Fz"]).mean())
-    # df["Fx/Fz"] = df["Fx/Fz"] / abs(df["Fx/Fz"]).mean()
-    # print(abs(df["Fx/Fz"]).mean())
-    # df.loc[(df["Fx/Fz"] > 1), "Fx/Fz"] = abs(df["Fx/Fz"]).mean()
-    # df.loc[(df["Fx/Fz"] < -1), "Fx/Fz"] = abs(df["Fx/Fz"]).mean()
-    # df = df.drop(df[-1 > df["Fx/Fz"]].index)
-    # df = df.drop(df[1 < df["Fx/Fz"]].index).reset_index()
     df["Time"] = df["Time"] - df.loc[0, "Time"]
     df["Sample"] = range(0, len(df))
 
@@ -180,8 +157,6 @@ def exp_sinkage(i: int) -> pd.DataFrame:
     df = df.drop(df[df.Time > df.iloc[-1]["Time"] - 2].index).reset_index()
     df["Time"] = df["Time"] - df.loc[0, "Time"]
     df["Sinkage"] = (df["Sinkage"] - df.loc[0, "Sinkage"]) / (10e6)
-    # df["Sinkage"] = (-1 * df["Sinkage"]) / (10e6)
-    # df["Sinkage"] = df["Sinkage"] / 10e6
     df["Sample"] = range(0, len(df))
 
     return df
@@ -275,7 +250,6 @@ def sim_force(i: int) -> pd.DataFrame:
     df = df.rename(
         columns={"wheel.fx": "Fx", "wheel.fy": "Fy", "wheel.fz": "Fz"}
     )
-    # print(df.to_string())
     df["Sample"] = range(0, len(df))
     return df
 
@@ -326,7 +300,6 @@ def sim_slip(i: int) -> pd.DataFrame:
     df["Time"] = df["Time"] - df.loc[0, "Time"]
     df["Sample"] = range(0, len(df))
 
-    # print(df)
     return df
 
 
@@ -337,7 +310,6 @@ def force_slip(df: list) -> pd.DataFrame:
     for df in df:
         df_force_avg["Force_Avg"].append(abs(df["Fx/Fz"]).mean())
 
-    # print(df_sim_avg)
     return pd.DataFrame(df_force_avg)
 
 
@@ -373,138 +345,29 @@ def plot_regression_line(df_fslip):
 
 
 def plot_data(
-    sr_len: int,
-    df_exp: dict = None,
-    df_sim: dict = None,
-    df_fslip: dict = None,
-    pol_reg_dict: dict = None,
+    df_exp: DataFrame, df_sim: DataFrame, plot_grid: tuple, yaxis_: string
 ):
-    """Plot the data.
-
-    Arguments:
-        sr_len: length of the slip ratio list
-        df_exp: dict for experiment with the dataframes for each slip ratio
-        df_sim: dict for simulation with the dataframes for each slip ratio
-        df_slip: dict for slip values of the experiment
-    """
-    if df_exp is None:
-        df_exp = dict()
-    if df_sim is None:
-        df_sim = dict()
-    if df_fslip is None:
-        df_fslip = dict()
-    if pol_reg_dict is None:
-        pol_reg_dict = dict()
-
-    fig = {"force": None, "sinkage": None, "slip": None, "fslip": None}
-    ax = {"force": None, "sinkage": None, "slip": None, "fslip": None}
-
-    plot_value = "Fx"
-
-    fig["force"], ax["force"] = plt.subplots(constrained_layout=True)
-    fig["sinkage"], ax["sinkage"] = plt.subplots(constrained_layout=True)
-    fig["slip"], ax["slip"] = plt.subplots(constrained_layout=True)
-    fig["fslip"], ax["fslip"] = plt.subplots(constrained_layout=True)
-
-    ax["force"].set(
+    """Plot force for simulation and experiment."""
+    AX[plot_grid].set(
         xlabel="Sample",
-        ylabel=plot_value,
-        title=f"{plot_value}: SR{SR}",
-        autoscale_on=True,
+        ylabel=yaxis_,
+        title=f"{yaxis_} SR:{SR}",
     )
-    ax["sinkage"].set(
-        xlabel="Sample",
-        ylabel="Sinkage",
-        title=f"Sinkage: SR{SR}",
-        autoscale_on=True,
-    )
-    ax["slip"].set(
-        xlabel="Time",
-        ylabel="Slip",
-        title=f"Slip: SR{SR}",
-        autoscale_on=True,
-    )
-    ax["fslip"].set(
-        xlabel="Slip (%)",
-        ylabel="Fx/Fz",
-        title="Fx/Fz vs. Slip",
-        autoscale_on=True,
-    )
-
-    for i in range(sr_len - 1):
-
-        ax["force"].plot(
-            "Sample",
-            plot_value,
-            data=df_exp["force"][i],
-            linestyle="-",
-            label=f"Exp SR{SR[i]}",
-        )
-        ax["sinkage"].plot(
-            "Sample",
-            "Sinkage",
-            data=df_exp["sinkage"][i],
-            linestyle="-",
-            label=f"Exp SR{SR[i]}",
-        )
-        ax["slip"].plot(
-            "Time",
-            "Slip",
-            data=df_exp["slip"][i],
-            linestyle="-",
-            label=f"Exp SR{SR[i]}",
-        )
-
-        """ax["force"].plot(
-            "Sample",
-            plot_value,
-            data=df_sim["force"][i],
-            linestyle="solid",
-            label=f"Sim SR{SR[i]}",
-        )
-
-        ax["sinkage"].plot(
-            "Sample",
-            "Sinkage",
-            data=df_sim["sinkage"][i],
-            linestyle="-",
-            label=f"Sim SR{SR[i]}",
-        )
-        ax["slip"].plot(
-            "Sample",
-            "Slip",
-            data=df_sim["slip"][i],
-            linestyle="-",
-            label=f"Sim SR{SR[i]}",
-        )"""
-
-    ax["fslip"].scatter(
-        "Slip",
-        "Force_Avg",
-        data=df_fslip["sim"],
+    AX[plot_grid].plot(
+        "Sample",
+        yaxis_,
+        data=df_exp,
         linestyle="-",
-        label="sim",
+        label=f"Exp SR{SR[i]}",
     )
-    ax["fslip"].scatter(
-        "Slip",
-        "Force_Avg",
-        data=df_fslip["exp"],
+    AX[plot_grid].plot(
+        "Sample",
+        yaxis_,
+        data=df_sim,
         linestyle="-",
-        label="exp",
+        label=f"Sim SR{SR[i]}",
     )
-    # ax["fslip"].plot(X, pol_reg_dict[key])
-
-    ax["force"].legend()
-    ax["sinkage"].legend()
-    ax["slip"].legend()
-    ax["fslip"].legend()
-
-    # fig["force"].savefig(f"../figures/20220721/experiment/fz_{SR}.png")
-    # fig["sinkage"].savefig(f"../figures/20220721/experiment/sinkage_{SR}.png")
-    # fig["slip"].savefig("../figures/sim_slip_10.png")
-    # fig["fslip"].savefig(f"../figures/simulation/sim_fslip_fxfz_{SR}.png")
-
-    plt.show()
+    AX[plot_grid].legend()
 
 
 def main():
@@ -513,38 +376,30 @@ def main():
     df_exp: dict for experiment with the dataframes for each slip ratio
     df_sim: dict for simulation with the dataframes for each slip ratio
     """
-    df_exp = {"force": list(), "sinkage": list(), "slip": list()}
-    df_sim = {"force": list(), "sinkage": list(), "slip": list()}
-    df_fslip = dict()
-    pol_reg_dict = dict()
-
     for i in range(len(sys.argv) - 1):
         try:
-            df_exp["force"].append(exp_force(i))
-            df_exp["sinkage"].append(exp_sinkage(i))
-            df_exp["slip"].append(exp_slip(i))
+            plot_data(exp_force(i), sim_force(i), (0, 0), PLOT_VALUE)
+            plot_data(exp_sinkage(i), sim_sinkage(i), (0, 1), "Sinkage")
+            plot_data(exp_slip(i), sim_slip(i), (1, 0), "Slip")
+
         except FileNotFoundError as err:
             print(f"Experiment File not found: {err}")
 
-        try:
-            df_sim["force"].append(sim_force(i))
-            df_sim["sinkage"].append(sim_sinkage(i))
-            df_sim["slip"].append(sim_slip(i))
-        except FileNotFoundError as err:
-            print(f"Simulation File not found: {err}")
-
-    df_fslip["exp"] = force_slip(df_exp["force"])
-    df_fslip["sim"] = force_slip(df_sim["force"])
-
-    # print(df_fslip)
-    # pol_reg_dict = curve_fitting(df_fslip)
-    plot_data(len(sys.argv), df_exp, df_sim, df_fslip, pol_reg_dict)
-    # plot_regression_line(df_fslip)
-
 
 if __name__ == "__main__":
+
+    DATE = 20220713
+    WHEEL_WEIGHT = 50  # In N
+    WHEEL_DIAMETER = 0.18  # In m
+    WHEEL_RADIUS = WHEEL_DIAMETER / 2  # In m
+    SLIP_CONSTANT = 1  # constant for angular velocity (should not matter)
+    SR = list()  # slip ration value in percentage
+    PLOT_VALUE = "Fx/Fz"
+
+    FIG, AX = plt.subplots(nrows=2, ncols=2, constrained_layout=True)
 
     for i in range(len(sys.argv) - 1):  # getting a list of slip ratio values
         SR.append(sys.argv[i + 1])
 
     main()
+    plt.show()
