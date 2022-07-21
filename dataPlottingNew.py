@@ -39,13 +39,13 @@ def exp_force(i: int) -> pd.DataFrame:
     csv_filename_inside = "leptrino_force_torque_center-force_torque.csv"
 
     filename_onwheel = (
-        f"../data/{DATE}/{data_type}/{DATE}_{SR[i]}/{csv_filename_onwheel}"
+        f"../data/{DATE}/{data_type}/{DATE}_{SR[i]}/2/{csv_filename_onwheel}"
     )
     filename_estimator = (
-        f"../data/{DATE}/{data_type}/{DATE}_{SR[i]}/{csv_filename_estimator}"
+        f"../data/{DATE}/{data_type}/{DATE}_{SR[i]}/2/{csv_filename_estimator}"
     )
     filename_inside = (
-        f"../data/{DATE}/{data_type}/{DATE}_{SR[i]}/{csv_filename_inside}"
+        f"../data/{DATE}/{data_type}/{DATE}_{SR[i]}/2/{csv_filename_inside}"
     )
 
     df = pd.DataFrame()
@@ -399,7 +399,7 @@ def plot_data(
     fig = {"force": None, "sinkage": None, "slip": None, "fslip": None}
     ax = {"force": None, "sinkage": None, "slip": None, "fslip": None}
 
-    plot_value = "Fz"
+    plot_value = "Fx"
 
     fig["force"], ax["force"] = plt.subplots(constrained_layout=True)
     fig["sinkage"], ax["sinkage"] = plt.subplots(constrained_layout=True)
@@ -500,11 +500,11 @@ def plot_data(
     ax["fslip"].legend()
 
     # fig["force"].savefig(f"../figures/20220721/experiment/fz_{SR}.png")
-    fig["sinkage"].savefig(f"../figures/20220721/experiment/sinkage_{SR}.png")
+    # fig["sinkage"].savefig(f"../figures/20220721/experiment/sinkage_{SR}.png")
     # fig["slip"].savefig("../figures/sim_slip_10.png")
     # fig["fslip"].savefig(f"../figures/simulation/sim_fslip_fxfz_{SR}.png")
 
-    # plt.show()
+    plt.show()
 
 
 def main():
