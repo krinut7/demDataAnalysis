@@ -7,10 +7,6 @@ from sklearn.preprocessing import PolynomialFeatures
 from sklearn.linear_model import LinearRegression
 import seaborn as sns
 
-# import numpy as np
-
-# from os.path import exists as file_exists
-
 DATE = 20220713
 WHEEL_WEIGHT = 50  # In N
 WHEEL_DIAMETER = 0.18  # In m
@@ -40,7 +36,7 @@ def exp_force(i: int) -> pd.DataFrame:
     data_type = "experimentData"
     csv_filename_onwheel = "leptrino_force_torque_on_wheel-force_torque.csv"
     csv_filename_estimator = "force_and_torque_estimator-force_torque.csv"
-    # csv_filename_inside = "leptrino_force_torque_center-force_torque.csv"
+    csv_filename_inside = "leptrino_force_torque_center-force_torque.csv"
 
     filename_onwheel = (
         f"../data/{DATE}/{data_type}/{DATE}_{SR[i]}/{csv_filename_onwheel}"
@@ -48,9 +44,9 @@ def exp_force(i: int) -> pd.DataFrame:
     filename_estimator = (
         f"../data/{DATE}/{data_type}/{DATE}_{SR[i]}/{csv_filename_estimator}"
     )
-    """filename_inside = (
+    filename_inside = (
         f"../data/{DATE}/{data_type}/{DATE}_{SR[i]}/{csv_filename_inside}"
-    )"""
+    )
 
     df = pd.DataFrame()
 
@@ -66,7 +62,7 @@ def exp_force(i: int) -> pd.DataFrame:
 
     df_onwheel = df_onwheel.rename(
         columns={
-            ".wrench.force.x": "Fx",  # check out the docstring
+            ".wrench.force.x": "Fx",
             ".wrench.force.y": "Fy",
             ".wrench.force.z": "Fz",
             "time": "Time",
@@ -90,7 +86,7 @@ def exp_force(i: int) -> pd.DataFrame:
             "time": "Time",
         }
     )
-    """df_inside = pd.read_csv(
+    df_inside = pd.read_csv(
         filename_inside,
         usecols=[
             "time",
@@ -101,35 +97,28 @@ def exp_force(i: int) -> pd.DataFrame:
     )
     df_inside = df_inside.rename(
         columns={
-            ".wrench.force.x": "Fz",  # check out the docstring
-            ".wrench.force.y": "Fx",
-            ".wrench.force.z": "Fy",
+            ".wrench.force.x": "Fx",  # check out the docstring
+            ".wrench.force.y": "Fy",
+            ".wrench.force.z": "Fz",
             "time": "Time",
         }
-    )"""
+    )
 
-    df_onwheel["Fx"] = -1 * df_onwheel["Fx"]
+    # df_onwheel["Fx"] = -1 * df_onwheel["Fx"]
     df_onwheel["Fy"] = -1 * df_onwheel["Fy"]
     df_onwheel["Fz"] = -1 * df_onwheel["Fz"]
 
     """df_inside["Fx"] = -1 * df_inside["Fx"]
     df_inside["Fy"] = -1 * df_inside["Fy"]"""
 
-    t1 = df_estimator.loc[0, "Fy"] - df_onwheel.loc[0, "Fx"]
-    t2 = df_estimator.loc[0, "Fx"] - df_onwheel.loc[0, "Fy"]
-    t3 = df_estimator.loc[0, "Fz"] - df_onwheel.loc[0, "Fz"]
+    t1 = df_onwheel.loc[0, "Fy"] - df_inside.loc[0, "Fy"]  # for Fx
+    t2 = df_onwheel.loc[0, "Fz"] - df_inside.loc[0, "Fx"]
+    # t3 = df_estimator.loc[0, "Fz"] - df_onwheel.loc[0, "Fz"]
 
-    df["Fx"] = df_onwheel["Fx"] + t1
-    df["Fy"] = df_onwheel["Fy"] + t2
-    df["Fz"] = df_onwheel["Fz"] + t3
+    df["Fx"] = df_onwheel["Fy"] - t1
+    # df["Fy"] = df_onwheel["Fy"] + t2
+    df["Fz"] = df_onwheel["Fz"] - t2
     df["Time"] = df_onwheel["Time"]
-
-    df = df.rename(
-        columns={
-            "Fx": "Fy",  # check out the docstring
-            "Fy": "Fx",
-        }
-    )
 
     df["Fx/Fz"] = df["Fx"] / df["Fz"]
     # avg = abs(df["Fx"]).mean() / abs(df["Fz"]).mean()
@@ -143,18 +132,18 @@ def exp_force(i: int) -> pd.DataFrame:
             + df.loc[x, "Time"].microseconds / 1000000
         )
 
-    df = df.drop(df[df.Time < 1].index)
-    df = df.drop(df[df.Time > df.iloc[-1]["Time"] - 2].index).reset_index()
+    # df = df.drop(df[df.Time < 1].index)
+    # df = df.drop(df[df.Time > df.iloc[-1]["Time"] - 2].index).reset_index()
     # print(abs(df["Fx/Fz"]).mean())
-    df["Fx/Fz"] = df["Fx/Fz"] / abs(df["Fx/Fz"]).mean()
+    # df["Fx/Fz"] = df["Fx/Fz"] / abs(df["Fx/Fz"]).mean()
     # print(abs(df["Fx/Fz"]).mean())
-    df.loc[(df["Fx/Fz"] > 1), "Fx/Fz"] = abs(df["Fx/Fz"]).mean()
-    df.loc[(df["Fx/Fz"] < -1), "Fx/Fz"] = abs(df["Fx/Fz"]).mean()
+    # df.loc[(df["Fx/Fz"] > 1), "Fx/Fz"] = abs(df["Fx/Fz"]).mean()
+    # df.loc[(df["Fx/Fz"] < -1), "Fx/Fz"] = abs(df["Fx/Fz"]).mean()
     # df = df.drop(df[-1 > df["Fx/Fz"]].index)
     # df = df.drop(df[1 < df["Fx/Fz"]].index).reset_index()
     df["Time"] = df["Time"] - df.loc[0, "Time"]
+    df["Sample"] = range(0, len(df))
 
-    # print(df[df["Fx/Fz"] > 1].index)
     return df
 
 
@@ -171,10 +160,10 @@ def exp_sinkage(i: int) -> pd.DataFrame:
     - Drop intial sec and last 2 seconds
     """
     data_type = "experimentData"
-    csv_filename = "swt_driver-vertical_unit_log.csv"
+    csv_filename = "swt_driver-longitudinal_unit_log.csv"
     filename = f"../data/{DATE}/{data_type}/{DATE}_{SR[i]}/{csv_filename}"
 
-    df = pd.read_csv(filename, usecols=["time", ".wheel_sinkage"])
+    df = pd.read_csv(filename, usecols=["time", ".traveling_distance"])
 
     df["time"] = pd.to_datetime(df["time"])
     df["time"] = df["time"] - df.loc[0, "time"]
@@ -185,11 +174,15 @@ def exp_sinkage(i: int) -> pd.DataFrame:
             + df.loc[x, "time"].microseconds / 1000000
         )
 
-    df = df.rename(columns={"time": "Time", ".wheel_sinkage": "Sinkage"})
+    df = df.rename(columns={"time": "Time", ".traveling_distance": "Sinkage"})
 
-    df = df.drop(df[df.Time < 1].index)
+    df = df.drop(df[df.Time < 3].index)
     df = df.drop(df[df.Time > df.iloc[-1]["Time"] - 2].index).reset_index()
     df["Time"] = df["Time"] - df.loc[0, "Time"]
+    df["Sinkage"] = (df["Sinkage"] - df.loc[0, "Sinkage"]) / (10e6)
+    # df["Sinkage"] = (-1 * df["Sinkage"]) / (10e6)
+    # df["Sinkage"] = df["Sinkage"] / 10e6
+    df["Sample"] = range(0, len(df))
 
     return df
 
@@ -245,6 +238,7 @@ def exp_slip(i: int) -> pd.DataFrame:
     df = df.drop(df[df.Time < 1].index)
     df = df.drop(df[df.Time > df.iloc[-1]["Time"] - 2].index).reset_index()
     df["Time"] = df["Time"] - df.loc[0, "Time"]
+    df["Sample"] = range(0, len(df))
 
     return df
 
@@ -282,6 +276,7 @@ def sim_force(i: int) -> pd.DataFrame:
         columns={"wheel.fx": "Fx", "wheel.fy": "Fy", "wheel.fz": "Fz"}
     )
     # print(df.to_string())
+    df["Sample"] = range(0, len(df))
     return df
 
 
@@ -308,6 +303,7 @@ def sim_sinkage(i: int) -> pd.DataFrame:
     df["Time"] = df["Time"] - df.loc[0, "Time"]
     df["Sinkage"] = -1 * df["Sinkage"]
     df["Sinkage"] = df["Sinkage"] - df.loc[0, "Sinkage"]
+    df["Sample"] = range(0, len(df))
 
     return df
 
@@ -328,6 +324,7 @@ def sim_slip(i: int) -> pd.DataFrame:
     df["Slip"] = 1 - (df["Vx"] / (WHEEL_RADIUS * df["OmegaY"]))
     df = df.drop(df[df.Time < 2].index).reset_index()
     df["Time"] = df["Time"] - df.loc[0, "Time"]
+    df["Sample"] = range(0, len(df))
 
     # print(df)
     return df
@@ -344,28 +341,8 @@ def force_slip(df: list) -> pd.DataFrame:
     return pd.DataFrame(df_force_avg)
 
 
-def curve_fitting(df_fslip: dict):
-    """Fit the curve using polynomial regression."""
-    # pol_reg.predict(poly_reg.fit_transform(X))
-    pol_reg_dict = dict()
-
-    for key in df_fslip:
-        df = df_fslip[key]
-        X = df["Slip"].astype(int).to_numpy()
-        y = df["Force_Avg"].to_numpy()
-        print(X, y)
-        poly_reg = PolynomialFeatures(degree=3)
-        X_poly = poly_reg.fit_transform(X.reshape(-1, 1))
-        print(X_poly)
-        pol_reg = LinearRegression()
-        pol_reg.fit(X_poly, y)
-        pol_reg_dict[key] = pol_reg.predict(poly_reg.fit_transform(X))
-
-    return pol_reg_dict
-
-
 def plot_regression_line(df_fslip):
-
+    """Plot regression line."""
     df1 = df_fslip["exp"]
     df2 = df_fslip["sim"]
     fig, ax = plt.subplots()
@@ -430,13 +407,13 @@ def plot_data(
     fig["fslip"], ax["fslip"] = plt.subplots(constrained_layout=True)
 
     ax["force"].set(
-        xlabel="Time",
+        xlabel="Sample",
         ylabel=plot_value,
         title=f"{plot_value}: SR{SR}",
         autoscale_on=True,
     )
     ax["sinkage"].set(
-        xlabel="Time",
+        xlabel="Sample",
         ylabel="Sinkage",
         title=f"Sinkage: SR{SR}",
         autoscale_on=True,
@@ -457,14 +434,14 @@ def plot_data(
     for i in range(sr_len - 1):
 
         ax["force"].plot(
-            "Time",
+            "Sample",
             plot_value,
             data=df_exp["force"][i],
             linestyle="-",
             label=f"Exp SR{SR[i]}",
         )
         ax["sinkage"].plot(
-            "Time",
+            "Sample",
             "Sinkage",
             data=df_exp["sinkage"][i],
             linestyle="-",
@@ -479,7 +456,7 @@ def plot_data(
         )
 
         """ax["force"].plot(
-            "Time",
+            "Sample",
             plot_value,
             data=df_sim["force"][i],
             linestyle="solid",
@@ -487,14 +464,14 @@ def plot_data(
         )
 
         ax["sinkage"].plot(
-            "Time",
+            "Sample",
             "Sinkage",
             data=df_sim["sinkage"][i],
             linestyle="-",
             label=f"Sim SR{SR[i]}",
         )
         ax["slip"].plot(
-            "Time",
+            "Sample",
             "Slip",
             data=df_sim["slip"][i],
             linestyle="-",
@@ -508,6 +485,13 @@ def plot_data(
         linestyle="-",
         label="sim",
     )
+    ax["fslip"].scatter(
+        "Slip",
+        "Force_Avg",
+        data=df_fslip["exp"],
+        linestyle="-",
+        label="exp",
+    )
     # ax["fslip"].plot(X, pol_reg_dict[key])
 
     ax["force"].legend()
@@ -515,18 +499,12 @@ def plot_data(
     ax["slip"].legend()
     ax["fslip"].legend()
 
-    # ax["slip"].imshow()
-
-    # fig["force"].savefig(f"../figures/simulation/exp_fz_{SR}.png")
-    # fig["sinkage"].savefig(f"../figures/experiment/exp_sinkage_{SR}.png")
+    # fig["force"].savefig(f"../figures/20220721/experiment/fz_{SR}.png")
+    fig["sinkage"].savefig(f"../figures/20220721/experiment/sinkage_{SR}.png")
     # fig["slip"].savefig("../figures/sim_slip_10.png")
-    fig["fslip"].savefig(f"../figures/simulation/sim_fslip_fxfz_{SR}.png")
-    # ax["fslip"].legend()
-    fig["force"].show()
-    fig["sinkage"].show()
-    # fig["slip"].show()
-    # fig["fslip"].show()
-    plt.show()
+    # fig["fslip"].savefig(f"../figures/simulation/sim_fslip_fxfz_{SR}.png")
+
+    # plt.show()
 
 
 def main():
