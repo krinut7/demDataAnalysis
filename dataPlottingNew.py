@@ -381,10 +381,6 @@ if __name__ == "__main__":
     WHEEL_DIAMETER = 0.18  # In m
     WHEEL_RADIUS = WHEEL_DIAMETER / 2  # In m
     SLIP_CONSTANT = 1  # constant for angular velocity (should not matter)
-    # SR = list()  # slip ration value in percentage
-    PLOT_VALUE = "Fx/Fz"
-
-    FIG, AX = plt.subplots(nrows=2, ncols=2, constrained_layout=True)
 
     parser = argparse.ArgumentParser(
         description="Plotting the data for slip values"
@@ -396,10 +392,9 @@ if __name__ == "__main__":
         choices=["10", "30", "50", "70", "90"],
     )
     SR = parser.parse_args()
-    SR = SR.SR
+    SR = SR.SR  # list of slip ratio
 
-    # for i in range(len(sys.argv) - 1):  # getting a list of slip ratio values
-    # SR.append(sys.argv[i + 1])
+    FIG, AX = plt.subplots(nrows=2, ncols=2, constrained_layout=True)
 
     main()
     plt.show()
