@@ -5,6 +5,7 @@ import pandas as pd
 from matplotlib import pyplot as plt
 import sys
 import seaborn as sns
+import argparse
 
 from dataPlotting import DataFrame
 
@@ -313,7 +314,7 @@ def plot_regression_line(df_fslip):
 
 
 def plot_data(
-    df_exp: DataFrame, df_sim: DataFrame, plot_grid: tuple, yaxis_: string
+    i, df_exp: DataFrame, df_sim: DataFrame, plot_grid: tuple, yaxis_: string
 ):
     """Plot force for simulation and experiment."""
     AX[plot_grid].set(
@@ -365,9 +366,9 @@ def main():
     """
     for i in range(len(sys.argv) - 1):
         try:
-            plot_data(exp_force(i), sim_force(i), (0, 0), PLOT_VALUE)
-            plot_data(exp_sinkage(i), sim_sinkage(i), (0, 1), "Sinkage")
-            plot_data(exp_slip(i), sim_slip(i), (1, 0), "Slip")
+            plot_data(i, exp_force(i), sim_force(i), (0, 0), PLOT_VALUE)
+            plot_data(i, exp_sinkage(i), sim_sinkage(i), (0, 1), "Sinkage")
+            plot_data(i, exp_slip(i), sim_slip(i), (1, 0), "Slip")
 
         except FileNotFoundError as err:
             print(f"Experiment File not found: {err}")
@@ -380,13 +381,25 @@ if __name__ == "__main__":
     WHEEL_DIAMETER = 0.18  # In m
     WHEEL_RADIUS = WHEEL_DIAMETER / 2  # In m
     SLIP_CONSTANT = 1  # constant for angular velocity (should not matter)
-    SR = list()  # slip ration value in percentage
+    # SR = list()  # slip ration value in percentage
     PLOT_VALUE = "Fx/Fz"
 
     FIG, AX = plt.subplots(nrows=2, ncols=2, constrained_layout=True)
 
-    for i in range(len(sys.argv) - 1):  # getting a list of slip ratio values
-        SR.append(sys.argv[i + 1])
+    parser = argparse.ArgumentParser(
+        description="Plotting the data for slip values"
+    )
+    parser.add_argument(
+        "SR",
+        nargs="+",
+        help="Slip Ratio values",
+        choices=["10", "30", "50", "70", "90"],
+    )
+    SR = parser.parse_args()
+    SR = SR.SR
+
+    # for i in range(len(sys.argv) - 1):  # getting a list of slip ratio values
+    # SR.append(sys.argv[i + 1])
 
     main()
     plt.show()
