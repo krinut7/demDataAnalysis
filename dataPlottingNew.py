@@ -381,7 +381,7 @@ if __name__ == "__main__":
     WHEEL_DIAMETER = 0.18  # In m
     WHEEL_RADIUS = WHEEL_DIAMETER / 2  # In m
     SLIP_CONSTANT = 1  # constant for angular velocity (should not matter)
-
+    PLOT_VALUE = "Fx/Fz"
     parser = argparse.ArgumentParser(
         description="Plotting the data for slip values"
     )
@@ -392,9 +392,8 @@ if __name__ == "__main__":
         choices=["10", "30", "50", "70", "90"],
     )
     SR = parser.parse_args()
-    SR = SR.SR  # list of slip ratio
+    SR = SR.SR
 
     FIG, AX = plt.subplots(nrows=2, ncols=2, constrained_layout=True)
-
     main()
     plt.show()
