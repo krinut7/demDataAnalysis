@@ -418,6 +418,7 @@ def plot_data(
     ylabel_: str,
     units_: str,
     title_: str,
+    alpha_: float = 1.0,
 ):
     """Plot the data."""
     AX[plot_grid].set(
@@ -431,6 +432,7 @@ def plot_data(
         data=df,
         linestyle="-",
         label=f"SR{SR[i]}",
+        alpha=alpha_,
     )
     AX[plot_grid].set_xlim(0, 30)
     AX[plot_grid].legend(ncol=5, loc="best", fontsize=8)
@@ -466,10 +468,21 @@ def main():
                 runs_force_avg(i),
                 (0, 0),
                 "Time",
-                "Moving_Avg_Fz",
-                "Fz",
+                "Moving_Avg_Fx",
+                "Fx",
                 "(N)",
-                "Fz vs. Time",
+                "Fx vs. Time",
+            )
+            plot_data(
+                i,
+                runs_force_avg(i),
+                (0, 0),
+                "Time",
+                "Fx",
+                "Fx",
+                "(N)",
+                "Fx vs. Time",
+                alpha_=0.25,
             )
             plot_data(
                 i,
@@ -483,6 +496,17 @@ def main():
             )
             plot_data(
                 i,
+                runs_force_avg(i),
+                (0, 1),
+                "Time",
+                "Fx/Fz",
+                "Fx/Fz",
+                " ",
+                "Fx/Fz vs. Time",
+                alpha_=0.25,
+            )
+            plot_data(
+                i,
                 runs_sinkage_avg(i),
                 (1, 0),
                 "Time",
@@ -490,6 +514,17 @@ def main():
                 "Sinkage",
                 "(mm)",
                 "Sinkage vs. Time",
+            )
+            plot_data(
+                i,
+                runs_sinkage_avg(i),
+                (1, 0),
+                "Time",
+                "Sinkage",
+                "Sinkage",
+                "(mm)",
+                "Sinkage vs. Time",
+                alpha_=0.25,
             )
         except FileNotFoundError as err:
             print(f"Experiment File not found: {err}")
@@ -508,12 +543,34 @@ def main():
             plot_data(
                 i,
                 sim_force(i),
+                (0, 0),
+                "Time",
+                "Fx",
+                "Fx",
+                "(N)",
+                "Fx vs. Time",
+                alpha_=0.25,
+            )
+            plot_data(
+                i,
+                sim_force(i),
                 (0, 1),
                 "Time",
                 "Moving_Avg_FxFz",
                 "Fx/Fz",
                 " ",
                 "Fx/Fz vs. Time",
+            )
+            plot_data(
+                i,
+                sim_force(i),
+                (0, 1),
+                "Time",
+                "Fx/Fz",
+                "Fx/Fz",
+                " ",
+                "Fx/Fz vs. Time",
+                alpha_=0.25,
             )
             plot_data(
                 i,
@@ -525,6 +582,18 @@ def main():
                 "(mm)",
                 "Sinkage vs. Time",
             )
+            plot_data(
+                i,
+                sim_sinkage(i),
+                (1, 0),
+                "Time",
+                "Sinkage",
+                "Sinkage",
+                "(mm)",
+                "Sinkage vs. Time",
+                alpha_=0.25,
+            )
+
         except FileNotFoundError as err:
             print(f"Simulation File not found: {err}")"""
 
@@ -582,5 +651,5 @@ if __name__ == "__main__":
     FIG.set_figwidth(12)
 
     main()
-    FIG.savefig(f"../figures/experiment/exp_fz{SR}.png")
+    FIG.savefig(f"../figures/experiment/exp_moving_{SR}.png")
     plt.show()
