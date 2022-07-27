@@ -4,14 +4,14 @@ import pandas as pd
 from matplotlib import pyplot as plt
 import seaborn as sns
 import argparse
-from dataPlotting import DataFrame
 
 
-def exp_force(i: int) -> pd.DataFrame:
+def exp_force(i: int, j: int) -> pd.DataFrame:
     """Read the experiment force data.
 
     Arguments:
         i (int): INdex for SR list
+        j (int): Index for run list
     Return:
         df (pd.DataFrame): df with exp_force values
 
@@ -31,11 +31,11 @@ def exp_force(i: int) -> pd.DataFrame:
 
     filename_onwheel = (
         f"../data/{DATE}/{data_type}/"
-        f"{DATE}_{SR[i]}/{RUN}/{csv_filename_onwheel}"
+        f"{DATE}_{SR[i]}/{RUN[j]}/{csv_filename_onwheel}"
     )
     filename_inside = (
         f"../data/{DATE}/{data_type}/"
-        f"{DATE}_{SR[i]}/{RUN}/{csv_filename_inside}"
+        f"{DATE}_{SR[i]}/{RUN[j]}/{csv_filename_inside}"
     )
 
     df = pd.DataFrame()
@@ -93,7 +93,31 @@ def exp_force(i: int) -> pd.DataFrame:
     return df
 
 
-def exp_sinkage(i: int) -> pd.DataFrame:
+def runs_force_avg(i: int):
+    """Calculate the average of all runs."""
+    df_force = list()
+    df = pd.DataFrame()
+
+    for j in range(len(RUN)):
+        df_force.append(exp_force(i, j))
+
+    df["Time"] = (
+        df_force[0]["Time"] + df_force[1]["Time"] + df_force[2]["Time"]
+    ) / 3
+    df["Fx"] = (df_force[0]["Fx"] + df_force[1]["Fx"] + df_force[2]["Fx"]) / 3
+    df["Fz"] = (df_force[0]["Fz"] + df_force[1]["Fz"] + df_force[2]["Fz"]) / 3
+
+    df["Fx/Fz"] = df["Fx"] / df["Fz"]
+    df["Time"] = df["Time"] - df.loc[0, "Time"]
+    df["Sample"] = range(0, len(df))
+    df["Moving_Avg_Fx"] = df["Fx"].rolling(SPAN).mean()
+    df["Moving_Avg_Fz"] = df["Fz"].rolling(SPAN).mean()
+    df["Moving_Avg_FxFz"] = df["Fx/Fz"].rolling(SPAN).mean()
+
+    return df
+
+
+def exp_sinkage(i: int, j: int) -> pd.DataFrame:
     """Read the experiment sinkage data.
 
     Arguments:
@@ -108,7 +132,7 @@ def exp_sinkage(i: int) -> pd.DataFrame:
     data_type = "experimentData"
     csv_filename = "swt_driver-vertical_unit_log.csv"
     filename = (
-        f"../data/{DATE}/{data_type}/{DATE}_{SR[i]}/{RUN}/{csv_filename}"
+        f"../data/{DATE}/{data_type}/{DATE}_{SR[i]}/{RUN[j]}/{csv_filename}"
     )
 
     df = pd.read_csv(filename, usecols=["time", ".wheel_sinkage"])
@@ -135,7 +159,31 @@ def exp_sinkage(i: int) -> pd.DataFrame:
     return df
 
 
-def exp_slip(i: int) -> pd.DataFrame:
+def runs_sinkage_avg(i: int):
+    """Calculate the average of all runs."""
+    df_sinkage = list()
+    df = pd.DataFrame()
+
+    for j in range(len(RUN)):
+        df_sinkage.append(exp_sinkage(i, j))
+
+    df["Time"] = (
+        df_sinkage[0]["Time"] + df_sinkage[1]["Time"] + df_sinkage[2]["Time"]
+    ) / 3
+    df["Sinkage"] = (
+        df_sinkage[0]["Sinkage"]
+        + df_sinkage[1]["Sinkage"]
+        + df_sinkage[2]["Sinkage"]
+    ) / 3
+
+    df["Sinkage"] = -1 * (df["Sinkage"] - df.loc[0, "Sinkage"])
+    df["Sample"] = range(0, len(df))
+    df["Moving_Avg_Sinkage"] = df["Sinkage"].rolling(SPAN).mean()
+
+    return df
+
+
+def exp_slip(i: int, j: int) -> pd.DataFrame:
     """Read and calculate the slip values for experiment.
 
     Arguments:
@@ -156,10 +204,11 @@ def exp_slip(i: int) -> pd.DataFrame:
 
     filename_wheel = (
         f"../data/{DATE}/{data_type}/"
-        f"{DATE}_{SR[i]}/{RUN}/{csv_filename_angular}"
+        f"{DATE}_{SR[i]}/{RUN[j]}/{csv_filename_angular}"
     )
     filename_conveying = (
-        f"../data/{DATE}/{data_type}/{DATE}_{SR[i]}/{RUN}/{csv_filename_trans}"
+        f"../data/{DATE}/{data_type}/"
+        f"{DATE}_{SR[i]}/{RUN[j]}/{csv_filename_trans}"
     )
 
     df_wheel = pd.read_csv(
@@ -312,7 +361,7 @@ def sim_slip(i: int) -> pd.DataFrame:
     return df
 
 
-def force_slip(df: list) -> DataFrame:
+def force_slip(df: list) -> pd.DataFrame:
     """Calculate the average of force values for each slip."""
     df_avg = {
         "Slip": SR,
@@ -362,7 +411,7 @@ def plot_regression_line(df_fslip):
 
 def plot_data(
     i: int,
-    df: DataFrame,
+    df: pd.DataFrame,
     plot_grid: tuple,
     xaxis_: str,
     yaxis_: str,
@@ -402,7 +451,7 @@ def main():
         except FileNotFoundError as err:
             print(f"Simulation File not found: {err}")
         try:
-            df_exp.append(exp_force(i))
+            df_exp.append(runs_force_avg(i))
         except FileNotFoundError as err:
             print(f"Experiment File not found: {err}")
 
@@ -414,17 +463,17 @@ def main():
         try:
             plot_data(
                 i,
-                exp_force(i),
+                runs_force_avg(i),
                 (0, 0),
                 "Time",
-                "Moving_Avg_Fx",
-                "Fx",
+                "Moving_Avg_Fz",
+                "Fz",
                 "(N)",
-                "Fx vs. Time",
+                "Fz vs. Time",
             )
             plot_data(
                 i,
-                exp_force(i),
+                runs_force_avg(i),
                 (0, 1),
                 "Time",
                 "Moving_Avg_FxFz",
@@ -434,7 +483,7 @@ def main():
             )
             plot_data(
                 i,
-                exp_sinkage(i),
+                runs_sinkage_avg(i),
                 (1, 0),
                 "Time",
                 "Moving_Avg_Sinkage",
@@ -445,27 +494,61 @@ def main():
         except FileNotFoundError as err:
             print(f"Experiment File not found: {err}")
 
-    try:
-        AX[1, 1].set(
-            xlabel="Slip (%)",
-            ylabel="Fx/Fz",
-            title="Fx/Fz vs. Slip",
-        )
-        """AX[1, 1].plot(
-            "Slip",
-            "Force_Avg_FxFz",
-            "^r:",
-            data=df_avg_sim,
-        )"""
-        AX[1, 1].plot(
-            "Slip",
-            "Force_Avg_FxFz",
-            "^r:",
-            data=df_avg_exp,
-        )
-        # AX[1, 1].set_xlim(0, 100)
-    except FileNotFoundError as err:
-        print(f"Experiment File not found: {err}")
+        """try:
+            plot_data(
+                i,
+                sim_force(i),
+                (0, 0),
+                "Time",
+                "Moving_Avg_Fx",
+                "Fx",
+                "(N)",
+                "Fx vs. Time",
+            )
+            plot_data(
+                i,
+                sim_force(i),
+                (0, 1),
+                "Time",
+                "Moving_Avg_FxFz",
+                "Fx/Fz",
+                " ",
+                "Fx/Fz vs. Time",
+            )
+            plot_data(
+                i,
+                sim_sinkage(i),
+                (1, 0),
+                "Time",
+                "Moving_Avg_Sinkage",
+                "Sinkage",
+                "(mm)",
+                "Sinkage vs. Time",
+            )
+        except FileNotFoundError as err:
+            print(f"Simulation File not found: {err}")"""
+
+    AX[1, 1].set(
+        xlabel="Slip (%)",
+        ylabel="Fx/Fz",
+        title="Fx/Fz vs. Slip",
+    )
+    AX[1, 1].plot(
+        "Slip",
+        "Force_Avg_Fz",
+        "^:",
+        data=df_avg_exp,
+        label="Experiment",
+    )
+
+    """AX[1, 1].plot(
+        "Slip",
+        "Force_Avg_FxFz",
+        "^:",
+        data=df_avg_sim,
+        label="Simluation",
+    )"""
+    AX[1, 1].legend(ncol=2, loc="best", fontsize=8)
 
 
 if __name__ == "__main__":
@@ -489,15 +572,15 @@ if __name__ == "__main__":
         help="Slip Ratio values",
         choices=["00", "10", "30", "50", "70", "90"],
     )
-    parser.add_argument("--run", "-r", default=1, help="Run value", type=int)
+    parser.add_argument("--RUNS", nargs="+", help="Run value", type=int)
     arguments_ = parser.parse_args()
     SR = arguments_.SR
-    RUN = arguments_.run
+    RUN = arguments_.RUNS
 
     FIG, AX = plt.subplots(nrows=2, ncols=2, constrained_layout=True)
     FIG.set_figheight(7)
     FIG.set_figwidth(12)
 
     main()
-    # FIG.savefig(f"../figures/simulation/sim_{SR}.png")
+    FIG.savefig(f"../figures/experiment/exp_fz{SR}.png")
     plt.show()
