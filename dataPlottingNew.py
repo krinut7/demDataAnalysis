@@ -72,7 +72,6 @@ def exp_force(i: int, j: int) -> pd.DataFrame:
     df["Fz"] = df_onwheel["Fz"] - t2
     df["Time"] = df_onwheel["Time"]
 
-    df["Fx/Fz"] = df["Fx"] / df["Fz"]
     df["Time"] = pd.to_datetime(df["Time"])
     df["Time"] = df["Time"] - df.loc[0, "Time"]
 
@@ -82,12 +81,15 @@ def exp_force(i: int, j: int) -> pd.DataFrame:
             + df.loc[x, "Time"].microseconds / 1000000
         )
 
-    # df = df.drop(df[df.Time < 10].index)
+    # df = df.drop(df[df.Time < 15].index).reset_index()
     # df = df.drop(df[df.Time > df.iloc[-1]["Time"] - 2].index).reset_index()
     df["Time"] = df["Time"] - df.loc[0, "Time"]
-    df["Sample"] = range(0, len(df))
+    df["Fz_caliberated"] = df["Fz"]
+    df.loc[df["Fz"] < 40, "Fz_caliberated"] = WHEEL_WEIGHT
+    df.loc[df["Fz"] > 60, "Fz_caliberated"] = WHEEL_WEIGHT
+    df["Fx/Fz"] = df["Fx"] / df["Fz_caliberated"]
     df["Moving_Avg_Fx"] = df["Fx"].rolling(SPAN).mean()
-    df["Moving_Avg_Fz"] = df["Fz"].rolling(SPAN).mean()
+    df["Moving_Avg_Fz"] = df["Fz_caliberated"].rolling(SPAN).mean()
     df["Moving_Avg_FxFz"] = df["Fx/Fz"].rolling(SPAN).mean()
 
     return df
@@ -104,8 +106,14 @@ def runs_force_avg(i: int):
     df["Time"] = (
         df_force[0]["Time"] + df_force[1]["Time"] + df_force[2]["Time"]
     ) / 3
-    df["Fx"] = (df_force[0]["Fx"] + df_force[1]["Fx"] + df_force[2]["Fx"]) / 3
-    df["Fz"] = (df_force[0]["Fz"] + df_force[1]["Fz"] + df_force[2]["Fz"]) / 3
+    df["Fx"] = abs(
+        (df_force[0]["Fx"] + df_force[1]["Fx"] + df_force[2]["Fx"]) / 3
+    )
+    df["Fz"] = (
+        df_force[0]["Fz_caliberated"]
+        + df_force[1]["Fz_caliberated"]
+        + df_force[2]["Fz_caliberated"]
+    ) / 3
 
     df["Fx/Fz"] = df["Fx"] / df["Fz"]
     df["Time"] = df["Time"] - df.loc[0, "Time"]
@@ -307,7 +315,7 @@ def sim_torque(i: int) -> pd.DataFrame:
     df["Time"] = df["Time"] - df.loc[0, "Time"]
 
     df["Sample"] = range(0, len(df))
-    df["Moving_Avg_Torque"] = df[PLOT_TORQUE].rolling(SPAN).mean()
+    # df["Moving_Avg_Torque"] = df[PLOT_TORQUE].rolling(SPAN).mean()
     return df
 
 
@@ -375,6 +383,8 @@ def force_slip(df: list) -> pd.DataFrame:
         df_avg["Force_Avg_Fz"].append(abs(df["Fz"]).mean())
         df_avg["Force_Avg_FxFz"].append(abs(df["Fx/Fz"]).mean())
 
+    df_avg = pd.DataFrame(data=df_avg)
+    df_avg.Slip = df_avg.Slip.astype(int)
     return df_avg
 
 
@@ -418,23 +428,24 @@ def plot_data(
     ylabel_: str,
     units_: str,
     title_: str,
+    label_: str = " ",
     alpha_: float = 1.0,
 ):
     """Plot the data."""
     AX[plot_grid].set(
         xlabel="Time (s)",
         ylabel=f"{ylabel_} {units_}",
-        title=f"{title_}",
+        title=f"{title_} SR{SR[i]}",
     )
     AX[plot_grid].plot(
         xaxis_,
         yaxis_,
         data=df,
         linestyle="-",
-        label=f"SR{SR[i]}",
+        label=f"{label_}",
         alpha=alpha_,
     )
-    AX[plot_grid].set_xlim(0, 30)
+    AX[plot_grid].set_xlim(0, df[xaxis_].max() + 0.5)
     AX[plot_grid].legend(ncol=5, loc="best", fontsize=8)
 
 
@@ -459,7 +470,6 @@ def main():
 
     df_avg_sim = force_slip(df_sim)
     df_avg_exp = force_slip(df_exp)
-    print(df_avg_exp)
 
     for i in range(len(SR)):
         try:
@@ -472,6 +482,7 @@ def main():
                 "Fx",
                 "(N)",
                 "Fx vs. Time",
+                label_="Exp: Mvg. Avg",
             )
             plot_data(
                 i,
@@ -482,7 +493,7 @@ def main():
                 "Fx",
                 "(N)",
                 "Fx vs. Time",
-                alpha_=0.25,
+                label_="Exp: Raw",
             )
             plot_data(
                 i,
@@ -491,8 +502,9 @@ def main():
                 "Time",
                 "Moving_Avg_FxFz",
                 "Fx/Fz",
-                " ",
+                "(mm) ",
                 "Fx/Fz vs. Time",
+                label_="Exp: Mvg. Avg",
             )
             plot_data(
                 i,
@@ -503,7 +515,8 @@ def main():
                 "Fx/Fz",
                 " ",
                 "Fx/Fz vs. Time",
-                alpha_=0.25,
+                label_="Exp: Raw",
+                alpha_=ALPHA,
             )
             plot_data(
                 i,
@@ -514,6 +527,7 @@ def main():
                 "Sinkage",
                 "(mm)",
                 "Sinkage vs. Time",
+                label_="Exp: Mvg. Avg",
             )
             plot_data(
                 i,
@@ -524,12 +538,13 @@ def main():
                 "Sinkage",
                 "(mm)",
                 "Sinkage vs. Time",
-                alpha_=0.25,
+                label_="Exp: Raw",
+                alpha_=ALPHA,
             )
         except FileNotFoundError as err:
             print(f"Experiment File not found: {err}")
 
-        """try:
+        try:
             plot_data(
                 i,
                 sim_force(i),
@@ -539,6 +554,7 @@ def main():
                 "Fx",
                 "(N)",
                 "Fx vs. Time",
+                label_="Sim: Mvg. Avg",
             )
             plot_data(
                 i,
@@ -549,7 +565,8 @@ def main():
                 "Fx",
                 "(N)",
                 "Fx vs. Time",
-                alpha_=0.25,
+                label_="Sim: Raw",
+                alpha_=ALPHA,
             )
             plot_data(
                 i,
@@ -560,6 +577,7 @@ def main():
                 "Fx/Fz",
                 " ",
                 "Fx/Fz vs. Time",
+                label_="Sim: Mvg. Avg",
             )
             plot_data(
                 i,
@@ -570,7 +588,8 @@ def main():
                 "Fx/Fz",
                 " ",
                 "Fx/Fz vs. Time",
-                alpha_=0.25,
+                label_="Sim: Raw",
+                alpha_=ALPHA,
             )
             plot_data(
                 i,
@@ -581,6 +600,7 @@ def main():
                 "Sinkage",
                 "(mm)",
                 "Sinkage vs. Time",
+                label_="Sim: Mvg. Avg",
             )
             plot_data(
                 i,
@@ -591,20 +611,22 @@ def main():
                 "Sinkage",
                 "(mm)",
                 "Sinkage vs. Time",
-                alpha_=0.25,
+                label_="Sim: Raw",
+                alpha_=ALPHA,
             )
 
         except FileNotFoundError as err:
-            print(f"Simulation File not found: {err}")"""
+            print(f"Simulation File not found: {err}")
 
     AX[1, 1].set(
         xlabel="Slip (%)",
         ylabel="Fx/Fz",
         title="Fx/Fz vs. Slip",
+        autoscale_on=True,
     )
     AX[1, 1].plot(
         "Slip",
-        "Force_Avg_Fz",
+        "Force_Avg_FxFz",
         "^:",
         data=df_avg_exp,
         label="Experiment",
@@ -617,6 +639,8 @@ def main():
         data=df_avg_sim,
         label="Simluation",
     )"""
+    AX[1, 1].set_xlim(0, 100)
+    AX[1, 1].set_xticks([0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100])
     AX[1, 1].legend(ncol=2, loc="best", fontsize=8)
 
 
@@ -629,8 +653,7 @@ if __name__ == "__main__":
     SLIP_CONSTANT = 1  # constant for angular velocity (should not matter)
     SPAN = 100
     SR = list()  # slip ration value in percentage
-    PLOT_FORCE = "Fx"
-    PLOT_TORQUE = "Ty/Fz"
+    ALPHA = 0.1
 
     parser = argparse.ArgumentParser(
         description="Plotting the data for slip values"
@@ -650,6 +673,8 @@ if __name__ == "__main__":
     FIG.set_figheight(7)
     FIG.set_figwidth(12)
 
+    print("==== STARTING PLOTTING ====")
     main()
-    FIG.savefig(f"../figures/experiment/exp_moving_{SR}.png")
+    # FIG.savefig(f"../figures/experiment/exp_moving_{SR}.png")
     plt.show()
+    print("==== PLOTTING ENDED ====")
