@@ -435,14 +435,14 @@ def plot_data(
     AX[plot_grid].set(
         xlabel="Time (s)",
         ylabel=f"{ylabel_} {units_}",
-        title=f"{title_} SR{SR[i]}",
+        title=f"{title_}",
     )
     AX[plot_grid].plot(
         xaxis_,
         yaxis_,
         data=df,
         linestyle="-",
-        label=f"{label_}",
+        label=f"SR{SR[i]}",
         alpha=alpha_,
     )
     AX[plot_grid].set_xlim(0, df[xaxis_].max() + 0.5)
@@ -468,8 +468,8 @@ def main():
         except FileNotFoundError as err:
             print(f"Experiment File not found: {err}")
 
-    df_avg_sim = force_slip(df_sim)
-    df_avg_exp = force_slip(df_exp)
+    # df_avg_sim = force_slip(df_sim)
+    # df_avg_exp = force_slip(df_exp)
 
     for i in range(len(SR)):
         try:
@@ -484,7 +484,7 @@ def main():
                 "Fx vs. Time",
                 label_="Exp: Mvg. Avg",
             )
-            plot_data(
+            """plot_data(
                 i,
                 runs_force_avg(i),
                 (0, 0),
@@ -494,7 +494,7 @@ def main():
                 "(N)",
                 "Fx vs. Time",
                 label_="Exp: Raw",
-            )
+            )"""
             plot_data(
                 i,
                 runs_force_avg(i),
@@ -506,7 +506,7 @@ def main():
                 "Fx/Fz vs. Time",
                 label_="Exp: Mvg. Avg",
             )
-            plot_data(
+            """plot_data(
                 i,
                 runs_force_avg(i),
                 (0, 1),
@@ -517,7 +517,7 @@ def main():
                 "Fx/Fz vs. Time",
                 label_="Exp: Raw",
                 alpha_=ALPHA,
-            )
+            )"""
             plot_data(
                 i,
                 runs_sinkage_avg(i),
@@ -529,7 +529,7 @@ def main():
                 "Sinkage vs. Time",
                 label_="Exp: Mvg. Avg",
             )
-            plot_data(
+            """plot_data(
                 i,
                 runs_sinkage_avg(i),
                 (1, 0),
@@ -540,11 +540,11 @@ def main():
                 "Sinkage vs. Time",
                 label_="Exp: Raw",
                 alpha_=ALPHA,
-            )
+            )"""
         except FileNotFoundError as err:
             print(f"Experiment File not found: {err}")
 
-        try:
+        """try:
             plot_data(
                 i,
                 sim_force(i),
@@ -616,9 +616,9 @@ def main():
             )
 
         except FileNotFoundError as err:
-            print(f"Simulation File not found: {err}")
+            print(f"Simulation File not found: {err}")"""
 
-    AX[1, 1].set(
+    """AX[1, 1].set(
         xlabel="Slip (%)",
         ylabel="Fx/Fz",
         title="Fx/Fz vs. Slip",
@@ -630,7 +630,7 @@ def main():
         "^:",
         data=df_avg_exp,
         label="Experiment",
-    )
+    )"""
 
     """AX[1, 1].plot(
         "Slip",
@@ -641,7 +641,7 @@ def main():
     )"""
     AX[1, 1].set_xlim(0, 100)
     AX[1, 1].set_xticks([0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100])
-    AX[1, 1].legend(ncol=2, loc="best", fontsize=8)
+    AX[1, 1].legend(ncol=2, loc="best", fontsize=6)
 
 
 if __name__ == "__main__":
