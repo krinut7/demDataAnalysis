@@ -16,4 +16,4 @@ df2 = pd.DataFrame(
 )
 df = pd.concat([df1, df2])
 foo = df.groupby(df.index).mean()
-print(type(5))
+print(df.to_string())
