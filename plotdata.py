@@ -1,6 +1,7 @@
 """Plot data collected from simulation and experiments."""
 
 from pyclbr import Function
+from turtle import shape
 import pandas as pd
 from matplotlib import pyplot as plt
 import seaborn as sns
@@ -60,14 +61,17 @@ def exp_force(i: int, j: int) -> pd.DataFrame:
             + df.loc[x, "Time"].microseconds / 1000000
         )
 
-    df = df.drop(df[df.Time > df.iloc[-1]["Time"] - 2].index).reset_index()
+    df = df.drop(df[df.Time > df.iloc[-1]["Time"] - 2].index)
     df["Fz_caliberated"] = df["Fz"]
     # df.loc[df["Fz"] < 40, "Fz_caliberated"] = WHEEL_WEIGHT
     # df.loc[df["Fz"] > 60, "Fz_caliberated"] = WHEEL_WEIGHT
-    df["Fx/Fz"] = df["Fx"] / df["Fz"]
+    df["Fx/Fz"] = abs(df["Fx"] / df["Fz"])
+    df = df.drop(df[df["Fx/Fz"] > 1].index).reset_index()
     df["Moving_Avg_Fx"] = df["Fx"].rolling(SPAN).mean()
     df["Moving_Avg_Fz"] = df["Fz"].rolling(SPAN).mean()
     df["Moving_Avg_FxFz"] = df["Fx/Fz"].rolling(SPAN).mean()
+    df = df.dropna().reset_index()
+    df["Time"] = df["Time"] - df.loc[0, "Time"]
 
     return df
 
@@ -93,9 +97,11 @@ def exp_sinkage(i: int, j: int) -> pd.DataFrame:
     df = df.drop(df[df.Time < 3].index)
     df = df.drop(df[df.Time > df.iloc[-1]["Time"] - 2].index).reset_index()
     df["Time"] = df["Time"] - df.loc[0, "Time"]
-    df["Sinkage"] = -1 * (df["Sinkage"] - df.loc[0, "Sinkage"]) / 1000
+    df["Sinkage"] = (df["Sinkage"] - df.loc[0, "Sinkage"]) / 1000
     df["Sample"] = range(0, len(df))
     df["Moving_Avg_Sinkage"] = df["Sinkage"].rolling(SPAN).mean()
+    df = df.dropna().reset_index()
+    df["Time"] = df["Time"] - df.loc[0, "Time"]
 
     return df
 
@@ -225,6 +231,13 @@ def runs_avg(i: int, func: Function, func2=None):
     foo = pd.concat(df_list)
     df = foo.groupby(foo.index).mean()
 
+    df["Time"] = 0
+    EXP_TIME = 30
+    dt = EXP_TIME / len(df.index)
+    for x in df.index:
+        if x + 1 > len(df.index) - 1:
+            break
+        df.loc[x + 1, "Time"] = df.loc[x, "Time"] + dt
     df["Sample"] = range(0, len(df))
 
     return df
@@ -234,9 +247,9 @@ def curve_fitting(df_list: list):
     """Fit the curve."""
     df = pd.concat(df_list)
     df = df.dropna().reset_index()
-    model = np.poly1d(np.polyfit(df["Slip"], df["Fx/Fz"], 3))
+    # df = df.drop(df[df["Fx/Fz"] > 1].index).reset_index()
+    model = np.poly1d(np.polyfit(df["Slip"], df["Fx/Fz"], DEGREE))
 
-    print(df)
     return model
 
 
@@ -247,53 +260,70 @@ def main():
     fig, ax = plt.subplots(constrained_layout=True)
     for i in range(len(SR)):
         ax.set(
-            xlabel="Time (s)",
-            ylabel="Fz (N)",
-            title=f"Fz vs. Time Slip Ratio:{SR[i]}%",
+            xlabel=r"Time (s)",
+            ylabel=r"Sinkage (mm)",
         )
-        # for j in range(len(RUN)):
-        df_exp = runs_avg(i, exp_force, exp_slip)
-        df_sim = runs_avg(i, sim_force)
-        df_list_exp.append(df_exp)
-        df_list_sim.append(df_sim)
+        try:
+            # for j in range(len(RUN)):
+            df_exp = runs_avg(i, exp_sinkage, exp_slip)
+            df_list_exp.append(df_exp)
+            ax.plot(
+                "Time",
+                "Moving_Avg_Sinkage",
+                "-",
+                label=rf"$i$: {SR[i]}",
+                data=df_exp,
+            )
+        except FileNotFoundError as err:
+            print(err)
 
+        """try:
+            df_sim = runs_avg(i, sim_force)
+            df_list_sim.append(df_sim)
+            ax.plot(
+                "Time",
+                "Moving_Avg_FxFz",
+                "-",
+                label=rf"$i$: {SR[i]}",
+                data=df_sim,
+            )
+        except FileNotFoundError as err:
+            print(err)"""
+
+    """try:
+        exp_model = curve_fitting(df_list_exp)
         ax.plot(
-            "Slip",
-            "Fx/Fz",
-            ":b",
-            data=df_exp,
+            POLYLINE,
+            exp_model(POLYLINE),
+            "-b",
+            label="Experiment",
         )
+    except:
+        print("Experiment File not found")
+
+    try:
+        sim_model = curve_fitting(df_list_sim)
         ax.plot(
-            "Slip",
-            "Fx/Fz",
-            ":r",
-            data=df_sim,
+            POLYLINE,
+            sim_model(POLYLINE),
+            "-r",
+            label="Simulation",
         )
+    except:
+        print("Simulation file not found")"""
 
-    exp_model = curve_fitting(df_list_exp)
-    sim_model = curve_fitting(df_list_sim)
-
-    ax.plot(
-        POLYLINE,
-        exp_model(POLYLINE),
-        "-b",
-        label="Exp",
-    )
-    ax.plot(
-        POLYLINE,
-        sim_model(POLYLINE),
-        "-r",
-        label="Sim",
-    )
-    ax.set_ylim(0, 1)
-    ax.set_xlim(0)
-    ax.legend()
+    fig.set_figheight(7)
+    fig.set_figwidth(12)
+    # ax.set_ylim(0)
+    ax.set_xlim(0, 25)
+    # ax.set_xticks([0, 10, 30, 50, 70, 90])
+    ax.legend(fontsize=15)
     plt.show()
-    """fig.savefig(
-        "../figures/experiment/Fz_SR70.svg",
+    fig.savefig(
+        "../figures/experiment/sinkage.pdf",
         bbox_inches="tight",
-        format="svg",
-    )"""
+        format="pdf",
+    )
 
 
 if __name__ == "__main__":
@@ -304,7 +334,8 @@ if __name__ == "__main__":
     CONVEYING_RADIUS = 0.0627  # In mm
     SPAN = 100
     ALPHA = 0.1
-    POLYLINE = np.linspace(0, 100, 500)
+    POLYLINE = np.linspace(0, 95, 500)
+    DEGREE = 3
 
     parser = argparse.ArgumentParser(
         description="Plotting the data for slip values"
@@ -313,7 +344,6 @@ if __name__ == "__main__":
         "SR",
         nargs="+",
         help="Slip Ratio values",
-        choices=["00", "10", "30", "50", "70", "90"],
     )
     parser.add_argument("--runs", nargs="+", help="Run value", type=int)
     arguments_ = parser.parse_args()
@@ -324,4 +354,5 @@ if __name__ == "__main__":
     plt.rc("axes", titlesize=20)
     plt.rc("xtick", labelsize=15)
     plt.rc("ytick", labelsize=15)
+
     main()
