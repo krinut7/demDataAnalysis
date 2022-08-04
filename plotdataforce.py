@@ -225,7 +225,7 @@ def main():
     fig, ax = plt.subplots(constrained_layout=True)
     for i in range(len(SR)):
         ax.set(
-            xlabel=r"Slip Ratio, $i$ (%)",
+            xlabel=r"Slip Ratio, $s$ (%)",
             ylabel=r"Fx/Fz, $\mu$",
         )
         try:
@@ -277,7 +277,7 @@ def main():
     except FileNotFoundError as err:
         print(err)
 
-    """try:
+    try:
         sim_model = curve_fitting(df_list_sim)
         ax.plot(
             POLYLINE,
@@ -297,7 +297,7 @@ def main():
             capsize=5,
         )
     except FileNotFoundError as err:
-        print("Simulation file not found")"""
+        print("Simulation file not found")
 
     fig.set_figheight(10)
     fig.set_figwidth(15)
