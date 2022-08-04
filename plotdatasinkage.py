@@ -1,79 +1,10 @@
 """Plot data collected from simulation and experiments."""
 
 from pyclbr import Function
-from turtle import shape
 import pandas as pd
 from matplotlib import pyplot as plt
-import seaborn as sns
 import argparse
 import numpy as np
-
-
-def exp_force(i: int, j: int) -> pd.DataFrame:
-    """Read the experiment force data."""
-    data_type = "experimentData"
-    csv_onwheel = "leptrino_force_torque_on_wheel-force_torque.csv"
-    csv_inside = "leptrino_force_torque_center-force_torque.csv"
-
-    filename_onwheel = f"../data/{data_type}/{SR[i]}/{RUN[j]}/{csv_onwheel}"
-    filename_inside = f"../data/{data_type}/{SR[i]}/{RUN[j]}/{csv_inside}"
-
-    df = pd.DataFrame()
-
-    df_onwheel = pd.read_csv(
-        filename_onwheel,
-        usecols=[
-            "time",
-            ".wrench.force.x",
-            ".wrench.force.y",
-            ".wrench.force.z",
-        ],
-    )
-    df_onwheel.columns = ["Time", "Fx", "Fy", "Fz"]
-
-    df_inside = pd.read_csv(
-        filename_inside,
-        usecols=[
-            "time",
-            ".wrench.force.x",
-            ".wrench.force.y",
-            ".wrench.force.z",
-        ],
-    )
-    df_inside.columns = ["Time", "Fx", "Fy", "Fz"]
-
-    df_onwheel["Fy"] = -1 * df_onwheel["Fy"]
-    df_onwheel["Fz"] = -1 * df_onwheel["Fz"]
-
-    t1 = df_onwheel.loc[0, "Fy"] - df_inside.loc[0, "Fy"]  # for Fx
-    t2 = df_onwheel.loc[0, "Fz"] - df_inside.loc[0, "Fx"]
-
-    df["Time"] = df_onwheel["Time"]
-    df["Fx"] = df_onwheel["Fy"] - t1
-    df["Fz"] = df_onwheel["Fz"] - t2
-
-    df["Time"] = pd.to_datetime(df["Time"])
-    df["Time"] = df["Time"] - df.loc[0, "Time"]
-
-    for x in df.index:
-        df.loc[x, "Time"] = (
-            df.loc[x, "Time"].seconds
-            + df.loc[x, "Time"].microseconds / 1000000
-        )
-
-    df = df.drop(df[df.Time > df.iloc[-1]["Time"] - 2].index)
-    df["Fz_caliberated"] = df["Fz"]
-    # df.loc[df["Fz"] < 40, "Fz_caliberated"] = WHEEL_WEIGHT
-    # df.loc[df["Fz"] > 60, "Fz_caliberated"] = WHEEL_WEIGHT
-    df["Fx/Fz"] = abs(df["Fx"] / df["Fz"])
-    df = df.drop(df[df["Fx/Fz"] > 1].index).reset_index()
-    df["Moving_Avg_Fx"] = df["Fx"].rolling(SPAN).mean()
-    df["Moving_Avg_Fz"] = df["Fz"].rolling(SPAN).mean()
-    df["Moving_Avg_FxFz"] = df["Fx/Fz"].rolling(SPAN).mean()
-    df = df.dropna().reset_index()
-    df["Time"] = df["Time"] - df.loc[0, "Time"]
-
-    return df
 
 
 def exp_sinkage(i: int, j: int) -> pd.DataFrame:
@@ -95,14 +26,11 @@ def exp_sinkage(i: int, j: int) -> pd.DataFrame:
         )
 
     df = df.drop(df[df.Time < 3].index)
-    df = df.drop(df[df.Time > df.iloc[-1]["Time"] - 2].index).reset_index()
-    df["Time"] = df["Time"] - df.loc[0, "Time"]
+    df = df.drop(df[df.Time > 25].index).reset_index()
     df["Sinkage"] = (df["Sinkage"] - df.loc[0, "Sinkage"]) / 1000
-    df["Sample"] = range(0, len(df))
     df["Moving_Avg_Sinkage"] = df["Sinkage"].rolling(SPAN).mean()
-    df = df.dropna().reset_index()
-    df["Time"] = df["Time"] - df.loc[0, "Time"]
 
+    print(df)
     return df
 
 
@@ -171,35 +99,6 @@ def exp_slip(i: int, j: int) -> pd.DataFrame:
     return df
 
 
-def sim_force(i: int, j: int) -> pd.DataFrame:
-    """Read the simulation force data."""
-    data_type = "simulationData"
-    csv_filename = "result_monitor.csv"
-    filename = f"../data/{data_type}/{SR[i]}/{csv_filename}"
-
-    df = pd.read_csv(
-        filename,
-        header=1,
-        usecols=["Time", "wheel.fx", "wheel.fy", "wheel.fz"],
-    )
-    df.columns = ["Time", "Fx", "Fy", "Fz"]
-
-    df = df.drop(df[df.Time < 2].index).reset_index()
-
-    df["Fz"] = df["Fz"] + WHEEL_WEIGHT
-    df["Fx/Fz"] = df["Fx"] / df["Fz"]
-    avg = abs(df["Fx"]).mean() / abs(df["Fz"]).mean()
-    df["Fx/Fz"] = df["Fx/Fz"].fillna(avg)
-    df["Time"] = df["Time"] - df.loc[0, "Time"]
-
-    df["Sample"] = range(0, len(df))
-    df["Slip"] = int(SR[i])
-    df["Moving_Avg_Fx"] = df["Fx"].rolling(SPAN).mean()
-    df["Moving_Avg_FxFz"] = df["Fx/Fz"].rolling(SPAN).mean()
-
-    return df
-
-
 def sim_sinkage(i: int, j: int) -> pd.DataFrame:
     """Read the simulation sinkae data."""
     data_type = "simulationData"
@@ -210,11 +109,15 @@ def sim_sinkage(i: int, j: int) -> pd.DataFrame:
         filename, sep=" ", names=["Time", "Sinkage"], skiprows=[0]
     )
 
-    df = df.drop(df[df.Time < 2].index).reset_index()
-    df["Time"] = df["Time"] - df.loc[0, "Time"]
-    df["Sinkage"] = -1 * (df["Sinkage"] - df.loc[0, "Sinkage"]) * 1000
-    df["Sample"] = range(0, len(df))
+    df["Slip"] = int(SR[i])
     df["Moving_Avg_Sinkage"] = df["Sinkage"].rolling(SPAN).mean()
+    df = df.dropna()
+    df = df.drop(df[df.Time < 2].index).reset_index()
+    df["Moving_Avg_Sinkage"] = (
+        df["Moving_Avg_Sinkage"] - df.loc[0, "Moving_Avg_Sinkage"]
+    )
+    df["Sinkage"] = -1 * (df["Sinkage"] - df.loc[0, "Sinkage"]) * 1000
+    df["Time"] = df["Time"] - df.loc[0, "Time"]
 
     return df
 
@@ -239,28 +142,42 @@ def runs_avg(i: int, func: Function, func2=None):
             break
         df.loc[x + 1, "Time"] = df.loc[x, "Time"] + dt
     df["Sample"] = range(0, len(df))
-
     return df
+
+
+def std_mean(df_list: list):
+    """Calculate std and mean."""
+    df_avg = {"Mean": list(), "STD": list(), "Slip": list()}
+
+    for df in df_list:
+        df_avg["Mean"].append(df["Sinkage"].mean())
+        df_avg["STD"].append(df["Sinkage"].std())
+
+    df_avg["Slip"] = [int(x) for x in SR]
+
+    # df_avg = pd.DataFrame(df_avg)
+    print(df_avg)
+    return df_avg
 
 
 def curve_fitting(df_list: list):
     """Fit the curve."""
     df = pd.concat(df_list)
-    df = df.dropna().reset_index()
+    df = df.dropna()
     # df = df.drop(df[df["Fx/Fz"] > 1].index).reset_index()
-    model = np.poly1d(np.polyfit(df["Slip"], df["Fx/Fz"], DEGREE))
+    model = np.poly1d(np.polyfit(df["Slip"], df["Sinkage"], DEGREE))
 
     return model
 
 
 def main():
     """Call main function."""
-    df_list_exp = list()
+    df_list_exp = list()  # list of dataframes for each SR
     df_list_sim = list()
     fig, ax = plt.subplots(constrained_layout=True)
     for i in range(len(SR)):
         ax.set(
-            xlabel=r"Time (s)",
+            xlabel=r"Slip Ratio, $i$ (%)",
             ylabel=r"Sinkage (mm)",
         )
         try:
@@ -269,7 +186,7 @@ def main():
             df_list_exp.append(df_exp)
             ax.plot(
                 "Time",
-                "Moving_Avg_Sinkage",
+                "Sinkage",
                 "-",
                 label=rf"$i$: {SR[i]}",
                 data=df_exp,
@@ -277,18 +194,18 @@ def main():
         except FileNotFoundError as err:
             print(err)
 
-        """try:
-            df_sim = runs_avg(i, sim_force)
+        try:
+            df_sim = runs_avg(i, sim_sinkage)
             df_list_sim.append(df_sim)
-            ax.plot(
+            """ax.plot(
                 "Time",
-                "Moving_Avg_FxFz",
+                "Moving_Avg_Sinkage",
                 "-",
                 label=rf"$i$: {SR[i]}",
                 data=df_sim,
-            )
+            )"""
         except FileNotFoundError as err:
-            print(err)"""
+            print(err)
 
     """try:
         exp_model = curve_fitting(df_list_exp)
@@ -296,34 +213,57 @@ def main():
             POLYLINE,
             exp_model(POLYLINE),
             "-b",
-            label="Experiment",
+            label="Experiment: Curve Fit",
         )
-    except:
-        print("Experiment File not found")
+        df_exp_mean = std_mean(df_list_exp)
+        plt.errorbar(
+            "Slip",
+            "Mean",
+            yerr="STD",
+            data=df_exp_mean,
+            fmt="bs",
+            label="Experiment: Mean/STD",
+            ms=10,
+            capsize=5,
+        )
+    except FileNotFoundError as err:
+        print(err)"""
 
-    try:
+    """try:
         sim_model = curve_fitting(df_list_sim)
         ax.plot(
             POLYLINE,
             sim_model(POLYLINE),
             "-r",
-            label="Simulation",
+            label="Simulation: Curve Fit",
         )
-    except:
+        df_sim_mean = std_mean(df_list_sim)
+        plt.errorbar(
+            "Slip",
+            "Mean",
+            yerr="STD",
+            data=df_sim_mean,
+            fmt="rs",
+            label="Simulation: Mean/STD",
+            ms=10,
+            capsize=5,
+        )
+    except FileNotFoundError as err:
         print("Simulation file not found")"""
 
-    fig.set_figheight(7)
-    fig.set_figwidth(12)
+    fig.set_figheight(10)
+    fig.set_figwidth(15)
     # ax.set_ylim(0)
-    ax.set_xlim(0, 25)
+    # ax.set_xlim()
     # ax.set_xticks([0, 10, 30, 50, 70, 90])
-    ax.legend(fontsize=15)
+    ax.legend(fontsize=20)
+    plt.grid(linewidth="0.5", linestyle=":")
     plt.show()
-    fig.savefig(
-        "../figures/experiment/sinkage.pdf",
+    """fig.savefig(
+        "../figures/exp_sim_sinkage.pdf",
         bbox_inches="tight",
         format="pdf",
-    )
+    )"""
 
 
 if __name__ == "__main__":
@@ -350,9 +290,9 @@ if __name__ == "__main__":
     SR = arguments_.SR
     RUN = arguments_.runs
 
-    plt.rc("axes", labelsize=20)
-    plt.rc("axes", titlesize=20)
-    plt.rc("xtick", labelsize=15)
-    plt.rc("ytick", labelsize=15)
+    plt.rc("axes", labelsize=35)
+    plt.rc("axes", titlesize=25)
+    plt.rc("xtick", labelsize=30)
+    plt.rc("ytick", labelsize=30)
 
     main()
