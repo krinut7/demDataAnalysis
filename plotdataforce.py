@@ -225,7 +225,7 @@ def main():
     fig, ax = plt.subplots(constrained_layout=True)
     for i in range(len(SR)):
         ax.set(
-            xlabel=r"Slip Ratio, $s$ (%)",
+            xlabel=r"Time, (s)",
             ylabel=r"Fx/Fz, $\mu$",
         )
         try:
@@ -234,9 +234,9 @@ def main():
             df_list_exp.append(df_exp)
             """ax.plot(
                 "Time",
-                "Moving_Avg_Sinkage",
+                "Moving_Avg_FxFz",
                 "-",
-                label=rf"$i$: {SR[i]}",
+                label=rf"$s$: {SR[i]}%",
                 data=df_exp,
             )"""
         except FileNotFoundError as err:
@@ -245,17 +245,17 @@ def main():
         try:
             df_sim = runs_avg(i, sim_force)
             df_list_sim.append(df_sim)
-            """ax.plot(
+            ax.plot(
                 "Time",
-                "Moving_Avg_Sinkage",
+                "Moving_Avg_FxFz",
                 "-",
-                label=rf"$i$: {SR[i]}",
+                label=rf"$s$: {SR[i]}%",
                 data=df_sim,
-            )"""
+            )
         except FileNotFoundError as err:
             print(err)
 
-    try:
+    """try:
         exp_model = curve_fitting(df_list_exp)
         ax.plot(
             POLYLINE,
@@ -297,18 +297,18 @@ def main():
             capsize=5,
         )
     except FileNotFoundError as err:
-        print("Simulation file not found")
+        print("Simulation file not found")"""
 
     fig.set_figheight(10)
     fig.set_figwidth(15)
     # ax.set_ylim(0)
     # ax.set_xlim()
-    ax.set_xticks([0, 10, 30, 50, 70, 90])
+    # ax.set_xticks([0, 10, 30, 50, 70, 90])
     ax.legend(fontsize=20)
     plt.grid(linewidth="0.5", linestyle=":")
     plt.show()
     fig.savefig(
-        "../figures/fslip.pdf",
+        "../figures/simFxFz.pdf",
         bbox_inches="tight",
         format="pdf",
     )

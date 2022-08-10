@@ -1,6 +1,7 @@
 """Plot data collected from simulation and experiments."""
 
 from pyclbr import Function
+from turtle import position
 import pandas as pd
 from matplotlib import pyplot as plt
 import argparse
@@ -25,12 +26,11 @@ def exp_sinkage(i: int, j: int) -> pd.DataFrame:
             + df.loc[x, "Time"].microseconds / 1000000
         )
 
-    df = df.drop(df[df.Time < 3].index)
-    df = df.drop(df[df.Time > 25].index).reset_index()
+    df = df.drop(df[df.Time < 3].index).reset_index()
+    # df = df.drop(df[df.Time > 25].index).reset_index()
     df["Sinkage"] = (df["Sinkage"] - df.loc[0, "Sinkage"]) / 1000
     df["Moving_Avg_Sinkage"] = df["Sinkage"].rolling(SPAN).mean()
 
-    print(df)
     return df
 
 
@@ -114,7 +114,9 @@ def sim_sinkage(i: int, j: int) -> pd.DataFrame:
     df = df.dropna()
     df = df.drop(df[df.Time < 2].index).reset_index()
     df["Moving_Avg_Sinkage"] = (
-        df["Moving_Avg_Sinkage"] - df.loc[0, "Moving_Avg_Sinkage"]
+        -1
+        * (df["Moving_Avg_Sinkage"] - df.loc[0, "Moving_Avg_Sinkage"])
+        * 1000
     )
     df["Sinkage"] = -1 * (df["Sinkage"] - df.loc[0, "Sinkage"]) * 1000
     df["Time"] = df["Time"] - df.loc[0, "Time"]
@@ -156,7 +158,7 @@ def std_mean(df_list: list):
     df_avg["Slip"] = [int(x) for x in SR]
 
     # df_avg = pd.DataFrame(df_avg)
-    print(df_avg)
+
     return df_avg
 
 
@@ -177,33 +179,33 @@ def main():
     fig, ax = plt.subplots(constrained_layout=True)
     for i in range(len(SR)):
         ax.set(
-            xlabel=r"Slip Ratio, $i$ (%)",
+            xlabel=r"Time (s)",
             ylabel=r"Sinkage (mm)",
         )
         try:
             # for j in range(len(RUN)):
             df_exp = runs_avg(i, exp_sinkage, exp_slip)
             df_list_exp.append(df_exp)
-            ax.plot(
+            """ax.plot(
                 "Time",
-                "Sinkage",
+                "Moving_Avg_Sinkage",
                 "-",
-                label=rf"$i$: {SR[i]}",
+                label=rf"$s$: {SR[i]}%",
                 data=df_exp,
-            )
+            )"""
         except FileNotFoundError as err:
             print(err)
 
         try:
             df_sim = runs_avg(i, sim_sinkage)
             df_list_sim.append(df_sim)
-            """ax.plot(
+            ax.plot(
                 "Time",
                 "Moving_Avg_Sinkage",
                 "-",
-                label=rf"$i$: {SR[i]}",
+                label=rf"$s$: {SR[i]}%",
                 data=df_sim,
-            )"""
+            )
         except FileNotFoundError as err:
             print(err)
 
@@ -254,16 +256,16 @@ def main():
     fig.set_figheight(10)
     fig.set_figwidth(15)
     # ax.set_ylim(0)
-    # ax.set_xlim()
+    ax.set_xlim(0)
     # ax.set_xticks([0, 10, 30, 50, 70, 90])
-    ax.legend(fontsize=20)
+    ax.legend(fontsize=20, loc="upper left")
     plt.grid(linewidth="0.5", linestyle=":")
     plt.show()
-    """fig.savefig(
-        "../figures/exp_sim_sinkage.pdf",
+    fig.savefig(
+        "../figures/simSinkage.pdf",
         bbox_inches="tight",
         format="pdf",
-    )"""
+    )
 
 
 if __name__ == "__main__":
