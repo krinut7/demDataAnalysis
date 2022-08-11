@@ -301,9 +301,10 @@ def main():
 
     fig.set_figheight(10)
     fig.set_figwidth(15)
-    # ax.set_ylim(0)
-    # ax.set_xlim()
-    # ax.set_xticks([0, 10, 30, 50, 70, 90])
+    ax.set_xlim(0, 30)
+    ax.set_ylim(-0.8, 1.4)
+    ax.set_yticks([-0.8, -0.4, -0.0, 0.4, 0.8, 1.2])
+    ax.set_xticks([0, 5, 10, 15, 20, 25, 30])
     ax.legend(fontsize=20)
     plt.grid(linewidth="0.5", linestyle=":")
     plt.show()

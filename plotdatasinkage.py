@@ -186,26 +186,26 @@ def main():
             # for j in range(len(RUN)):
             df_exp = runs_avg(i, exp_sinkage, exp_slip)
             df_list_exp.append(df_exp)
-            """ax.plot(
+            ax.plot(
                 "Time",
-                "Moving_Avg_Sinkage",
+                "Sinkage",
                 "-",
                 label=rf"$s$: {SR[i]}%",
                 data=df_exp,
-            )"""
+            )
         except FileNotFoundError as err:
             print(err)
 
         try:
             df_sim = runs_avg(i, sim_sinkage)
             df_list_sim.append(df_sim)
-            ax.plot(
+            """ax.plot(
                 "Time",
                 "Moving_Avg_Sinkage",
                 "-",
                 label=rf"$s$: {SR[i]}%",
                 data=df_sim,
-            )
+            )"""
         except FileNotFoundError as err:
             print(err)
 
@@ -256,13 +256,15 @@ def main():
     fig.set_figheight(10)
     fig.set_figwidth(15)
     # ax.set_ylim(0)
-    ax.set_xlim(0)
-    # ax.set_xticks([0, 10, 30, 50, 70, 90])
+    ax.set_xlim(0, 30)
+    ax.set_xticks([0, 5, 10, 15, 20, 25, 30])
+    ax.set_ylim(-2, 40)
+    ax.set_yticks([0, 10, 20, 30, 40])
     ax.legend(fontsize=20, loc="upper left")
     plt.grid(linewidth="0.5", linestyle=":")
     plt.show()
     fig.savefig(
-        "../figures/simSinkage.pdf",
+        "../figures/expSinkage.pdf",
         bbox_inches="tight",
         format="pdf",
     )
