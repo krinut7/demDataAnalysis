@@ -8,7 +8,25 @@ from pyclbr import Function
 
 
 def exp_force(i: int, j: int) -> pd.DataFrame:
-    """Read the experiment force data."""
+    """Read the experiment force data.
+
+    Arguments:
+        i (int): INdex for SR list
+        j (int): Index for run list
+    Return:
+        df (pd.DataFrame): df with exp_force values
+
+    The axis for on wheel and estimator are different.
+    Estimator is the conventional axis.
+    Estimator -> On wheel: Fx -> -Fy, Fy -> -Fx, Fz -> -Fz
+                           Mx -> -My, My -> -Mz, Mz -> -Mx
+    - The columns are renamed according to the above convention.
+    - Signs for Fy and Fz are changed.
+    - Time is changed: string -> datetime -> seconds
+    - Values for intitial 1 sec and last 2 secs are dropped.
+
+    """
+    # creating the file name for the data
     data_type = "experimentData"
     csv_onwheel = "leptrino_force_torque_on_wheel-force_torque.csv"
     csv_inside = "leptrino_force_torque_center-force_torque.csv"
@@ -16,6 +34,7 @@ def exp_force(i: int, j: int) -> pd.DataFrame:
     filename_onwheel = f"../data/{data_type}/{SR[i]}/{RUN[j]}/{csv_onwheel}"
     filename_inside = f"../data/{data_type}/{SR[i]}/{RUN[j]}/{csv_inside}"
 
+    # reading the file into dataframe
     df = pd.DataFrame()
 
     df_onwheel = pd.read_csv(
@@ -40,6 +59,7 @@ def exp_force(i: int, j: int) -> pd.DataFrame:
     )
     df_inside.columns = ["Time", "Fx", "Fy", "Fz"]
 
+    # doing the axis tranformations
     df_onwheel["Fy"] = -1 * df_onwheel["Fy"]
     df_onwheel["Fz"] = -1 * df_onwheel["Fz"]
 
@@ -53,30 +73,51 @@ def exp_force(i: int, j: int) -> pd.DataFrame:
     df["Time"] = pd.to_datetime(df["Time"])
     df["Time"] = df["Time"] - df.loc[0, "Time"]
 
+    # extract time in seconds format from the logging time
     for x in df.index:
         df.loc[x, "Time"] = (
             df.loc[x, "Time"].seconds
             + df.loc[x, "Time"].microseconds / 1000000
         )
 
+    # drop the final 2 secs of the experiment
     df = df.drop(df[df.Time > df.iloc[-1]["Time"] - 2].index)
     df["Fz_caliberated"] = df["Fz"]
     # df.loc[df["Fz"] < 40, "Fz_caliberated"] = WHEEL_WEIGHT
     # df.loc[df["Fz"] > 60, "Fz_caliberated"] = WHEEL_WEIGHT
     df["Fx/Fz"] = df["Fx"] / df["Fz"]
+    
+    # drop values not in range (-1,1)
     df = df.drop(df[df["Fx/Fz"] > 1].index)
     df = df.drop(df[df["Fx/Fz"] < -1].index)
+    
+    # moving average
     df["Moving_Avg_Fx"] = df["Fx"].rolling(SPAN).mean()
     df["Moving_Avg_Fz"] = df["Fz"].rolling(SPAN).mean()
     df["Moving_Avg_FxFz"] = df["Fx/Fz"].rolling(SPAN).mean()
     df = df.dropna().reset_index()
+    
+    # caliberating time to start from zero
     df["Time"] = df["Time"] - df.loc[0, "Time"]
 
     return df
 
 
 def exp_slip(i: int, j: int) -> pd.DataFrame:
-    """Calculate slip for experiment."""
+    """Read and calculate the slip values for experiment.
+
+    Arguments:
+        i (int): INdex for SR list
+        j (int): index for run list
+    Return:
+        df (pd.DataFrame): df with exp_slip values
+
+    Algorithm:
+        - Calulate slip by taking the values of conveying motor and wheel
+         motor angular velocity.
+        - Formula for slip: 1 - (omega_r)/v
+        - drop intial 1 sec and last 2 secs
+    """
     data_type = "experimentData"
     csv_angular = "swt_driver-vertical_unit_log.csv"
     csv_trans = "swt_driver-longitudinal_unit_log.csv"
@@ -245,17 +286,17 @@ def main():
         try:
             df_sim = runs_avg(i, sim_force)
             df_list_sim.append(df_sim)
-            ax.plot(
-                "Time",
-                "Moving_Avg_FxFz",
-                "-",
-                label=rf"$s$: {SR[i]}%",
-                data=df_sim,
-            )
+            # ax.plot(
+            #     "Time",
+            #     "Moving_Avg_FxFz",
+            #     "-",
+            #     label=rf"$s$: {SR[i]}%",
+            #     data=df_sim,
+            # )
         except FileNotFoundError as err:
             print(err)
 
-    """try:
+    try:
         exp_model = curve_fitting(df_list_exp)
         ax.plot(
             POLYLINE,
@@ -297,22 +338,22 @@ def main():
             capsize=5,
         )
     except FileNotFoundError as err:
-        print("Simulation file not found")"""
+        print("Simulation file not found")
 
     fig.set_figheight(10)
     fig.set_figwidth(15)
-    ax.set_xlim(0, 30)
-    ax.set_ylim(-0.8, 1.4)
-    ax.set_yticks([-0.8, -0.4, -0.0, 0.4, 0.8, 1.2])
-    ax.set_xticks([0, 5, 10, 15, 20, 25, 30])
+    ax.set_xlim(0, 100)
+    #ax.set_ylim(-0.8, 1.4)
+    #ax.set_yticks([-0.8, -0.4, -0.0, 0.4, 0.8, 1.2])
+    #ax.set_xticks([0, 5, 10, 15, 20, 25, 30])
     ax.legend(fontsize=20)
     plt.grid(linewidth="0.5", linestyle=":")
     plt.show()
-    fig.savefig(
-        "../figures/simFxFz.pdf",
-        bbox_inches="tight",
-        format="pdf",
-    )
+    # fig.savefig(
+    #     "../figures/simFxFz.pdf",
+    #     bbox_inches="tight",
+    #     format="pdf",
+    # )
 
 
 if __name__ == "__main__":
